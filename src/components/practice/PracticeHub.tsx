@@ -375,6 +375,65 @@ export const PracticeHub: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Government Exam Simulation Discovery */}
+      <div
+        className="practice-exam-banner"
+        style={{
+          marginTop: 'var(--space-6)',
+          padding: 'var(--space-4) var(--space-5)',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 'var(--space-4)',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              marginBottom: 'var(--space-1)',
+            }}
+          >
+            <span
+              className="brand-badge"
+              style={{
+                fontSize: 'var(--text-xs)',
+                fontWeight: 600,
+                color: 'var(--accent-primary)',
+                borderColor: 'var(--accent-primary)',
+                padding: '2px 8px',
+              }}
+            >
+              Simulation
+            </span>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
+              Preparing for Competitive Exams?
+            </span>
+          </div>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: 0 }}>
+            Practice standard 10–15 minute SSC, RRB, and CPCT exam typing simulations with strict evaluation.
+          </p>
+        </div>
+        <Link
+          href="/exam"
+          className="btn btn-outline"
+          style={{
+            fontSize: 'var(--text-xs)',
+            padding: 'var(--space-2) var(--space-4)',
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Exam Simulation →
+        </Link>
+      </div>
     </div>
   );
 };

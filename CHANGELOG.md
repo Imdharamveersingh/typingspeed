@@ -1,6 +1,6 @@
 # CHANGELOG.md
 
-All notable changes to the **Typing Platform** project will be documented in this file.
+All notable changes to the **TypingSpeed** project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -10,7 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Phase 10: SEO architecture.
+- Phase 11: Design V2 & UI polish.
+
+---
+
+## [0.10.0] - 2026-09-25
+
+### Added
+- **Phase 10: SEO Architecture & Baseline Audit**:
+  - Implemented centralized site configuration (`src/config/site.ts`) with configurable `NEXT_PUBLIC_SITE_URL` support.
+  - Added App Router metadata generation (`src/app/sitemap.ts`, `src/app/robots.ts`, `src/app/icon.svg`).
+  - Added structured Open Graph and Twitter Card tags across `/`, `/practice`, `/progress`, and `/exam`.
+  - Harmonized design tokens in `src/styles/globals.css` with approved TypingSpeed palette.
+  - Implemented screen-reader accessible mirror (`.sr-only` and `aria-describedby`) for typing test passage canvas in `PassageDisplay.tsx`.
+  - Added Government Exam Simulation discoverability card in `PracticeHub.tsx`.
+  - Safely eliminated orphaned components (`AchievementsDashboard.tsx`, `DurationSelector.tsx`, `ExamSelector.tsx`).
+  - Synchronized project branding across documentation, metadata, footer, and `package.json`.
 
 ---
 

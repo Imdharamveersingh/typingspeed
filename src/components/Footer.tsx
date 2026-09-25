@@ -7,26 +7,31 @@ export const Footer: React.FC = () => {
       <div className="container footer-inner">
         <div>
           <p style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: '2px' }}>
-            Typing Platform
+            TypingSpeed
           </p>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-            Practice typing, track progress, and improve.
+            Practice typing, analyze mistakes, and systematically improve.
           </p>
         </div>
         <ul className="footer-links">
           <li>
-            <Link href="#privacy" className="footer-link">
-              Privacy
+            <Link href="/practice" className="footer-link">
+              Practice
             </Link>
           </li>
           <li>
-            <Link href="#about" className="footer-link">
-              About
+            <Link href="/exam" className="footer-link">
+              Exam Simulation
+            </Link>
+          </li>
+          <li>
+            <Link href="/progress" className="footer-link">
+              Progress
             </Link>
           </li>
           <li>
             <a
-              href="https://github.com"
+              href="https://github.com/Imdharamveersingh/TypingSpeed"
               target="_blank"
               rel="noopener noreferrer"
               className="footer-link"

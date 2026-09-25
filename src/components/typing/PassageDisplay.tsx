@@ -111,6 +111,7 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
       onClick={onContainerClick}
       tabIndex={0}
       aria-label="Typing test passage canvas. Click to focus and start typing."
+      aria-describedby="passage-accessible-text"
       onKeyDown={(_e) => {
         // If container itself receives tab focus, focus the hidden input
         if (document.activeElement !== inputRef.current) {
@@ -118,6 +119,11 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
         }
       }}
     >
+      {/* Accessible screen-reader mirror of the target passage text */}
+      <span id="passage-accessible-text" className="sr-only">
+        {characters.map((c) => c.char).join('')}
+      </span>
+
       <input
         ref={inputRef}
         type="text"
