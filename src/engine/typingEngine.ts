@@ -2,6 +2,7 @@ import {
   CharacterItem,
   Passage,
   TestDuration,
+  TestType,
   TypingMetrics,
   TypingState,
 } from './types';
@@ -23,7 +24,9 @@ import {
  */
 export function createInitialState(
   passage: Passage,
-  duration: TestDuration = 60
+  duration: TestDuration = 60,
+  testType: TestType = 'time',
+  targetCount?: number
 ): TypingState {
   const graphemes = segmentGraphemes(passage.text, passage.language);
   const characters: CharacterItem[] = graphemes.map((char) => ({
@@ -37,6 +40,8 @@ export function createInitialState(
     extraCharacters: [],
     currentIndex: 0,
     duration,
+    testType,
+    targetCount,
     status: 'idle',
     startTime: null,
     endTime: null,
@@ -141,12 +146,18 @@ export function processKeystroke(
         pendingComposition: undefined,
       };
 
+      const nextIndex = state.currentIndex + 1;
+      const isTargetCompleted =
+        (state.testType === 'words' || state.testType === 'characters') &&
+        nextIndex >= state.characters.length;
+
       return {
         ...state,
-        status: currentStatus,
+        status: isTargetCompleted ? 'completed' : currentStatus,
         startTime: currentStartTime,
+        endTime: isTargetCompleted ? timestamp : state.endTime,
         characters: updatedCharacters,
-        currentIndex: state.currentIndex + 1,
+        currentIndex: nextIndex,
         totalKeystrokes: updatedTotalKeystrokes,
         correctStrokes: state.correctStrokes + 1,
       };
@@ -209,12 +220,18 @@ export function processKeystroke(
       pendingComposition: undefined,
     };
 
+    const nextIndex = state.currentIndex + 1;
+    const isTargetCompleted =
+      (state.testType === 'words' || state.testType === 'characters') &&
+      nextIndex >= state.characters.length;
+
     return {
       ...state,
-      status: currentStatus,
+      status: isTargetCompleted ? 'completed' : currentStatus,
       startTime: currentStartTime,
+      endTime: isTargetCompleted ? timestamp : state.endTime,
       characters: updatedCharacters,
-      currentIndex: state.currentIndex + 1,
+      currentIndex: nextIndex,
       totalKeystrokes: updatedTotalKeystrokes,
       incorrectStrokes: state.incorrectStrokes + 1,
     };
@@ -266,6 +283,11 @@ export function tickTimer(
     return state;
   }
 
+  // In Words or Characters mode, test completion is determined by reaching the target
+  if (state.testType === 'words' || state.testType === 'characters') {
+    return state;
+  }
+
   const elapsedMs = currentTimestamp - state.startTime;
   const durationMs = state.duration * 1000;
 
@@ -287,18 +309,21 @@ export function calculateCurrentMetrics(
   state: TypingState,
   currentTimestamp?: number
 ): TypingMetrics {
-  const { status, startTime, endTime, duration, totalKeystrokes, characters, extraCharacters } = state;
+  const { status, startTime, endTime, duration, totalKeystrokes, characters, extraCharacters, testType } = state;
 
   let elapsedSeconds: number = 0;
   let remainingSeconds: number = duration;
 
+  const isCountMode = testType === 'words' || testType === 'characters';
+
   if (status === 'running' && startTime !== null) {
     const now = currentTimestamp ?? (typeof performance !== 'undefined' ? performance.now() : Date.now());
     const rawElapsed = Math.max(0, (now - startTime) / 1000);
-    elapsedSeconds = Math.min(duration, rawElapsed);
+    elapsedSeconds = isCountMode ? rawElapsed : Math.min(duration, rawElapsed);
     remainingSeconds = Math.max(0, duration - elapsedSeconds);
   } else if (status === 'completed' && startTime !== null && endTime !== null) {
-    elapsedSeconds = Math.min(duration, Math.max(0, (endTime - startTime) / 1000));
+    const rawElapsed = Math.max(0, (endTime - startTime) / 1000);
+    elapsedSeconds = isCountMode ? rawElapsed : Math.min(duration, rawElapsed);
     remainingSeconds = 0;
   }
 

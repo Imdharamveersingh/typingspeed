@@ -17,6 +17,8 @@ export interface ExtraCharacterItem {
   char: string;
 }
 
+export type TestType = 'time' | 'words' | 'characters';
+
 export type TestDuration = 60 | 180 | 300 | 600 | 900; // 1, 3, 5, 10, 15 minutes in seconds
 
 export type TestStatus = 'idle' | 'running' | 'completed';
@@ -48,6 +50,8 @@ export interface TypingState {
   extraCharacters: ExtraCharacterItem[];
   currentIndex: number;
   duration: TestDuration;
+  testType?: TestType;
+  targetCount?: number;
   status: TestStatus;
   startTime: number | null;
   endTime: number | null;

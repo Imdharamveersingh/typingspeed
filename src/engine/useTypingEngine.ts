@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Passage,
   TestDuration,
+  TestType,
   TypingMetrics,
   TypingState,
 } from './types';
@@ -19,6 +20,8 @@ import { isControlKey } from './textUtils';
 export interface UseTypingEngineProps {
   initialPassage: Passage;
   initialDuration?: TestDuration;
+  initialTestType?: TestType;
+  initialTargetCount?: number;
 }
 
 export interface UseTypingEngineReturn {
@@ -30,7 +33,8 @@ export interface UseTypingEngineReturn {
   restart: () => void;
   completeTest: () => void;
   setDuration: (duration: TestDuration) => void;
-  setPassage: (passage: Passage) => void;
+  setPassage: (passage: Passage, testType?: TestType, targetCount?: number) => void;
+  setTestType: (testType: TestType, targetCount?: number) => void;
   recentKey: { code?: string; status?: 'correct' | 'incorrect' } | null;
   handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   handleBeforeInput: (e: React.FormEvent<HTMLInputElement> & { data?: string }) => void;
@@ -46,9 +50,11 @@ export interface UseTypingEngineReturn {
 export function useTypingEngine({
   initialPassage,
   initialDuration = 60,
+  initialTestType = 'time',
+  initialTargetCount,
 }: UseTypingEngineProps): UseTypingEngineReturn {
   const [state, setState] = useState<TypingState>(() =>
-    createInitialState(initialPassage, initialDuration)
+    createInitialState(initialPassage, initialDuration, initialTestType, initialTargetCount)
   );
   const [metrics, setMetrics] = useState<TypingMetrics>(() =>
     calculateCurrentMetrics(state)
@@ -127,7 +133,7 @@ export function useTypingEngine({
       inputRef.current.value = '';
     }
     setState((prev) => {
-      const reset = createInitialState(prev.passage, prev.duration);
+      const reset = createInitialState(prev.passage, prev.duration, prev.testType, prev.targetCount);
       setMetrics(calculateCurrentMetrics(reset));
       return reset;
     });
@@ -165,7 +171,7 @@ export function useTypingEngine({
 
   const setDuration = useCallback((duration: TestDuration) => {
     setState((prev) => {
-      const updated = createInitialState(prev.passage, duration);
+      const updated = createInitialState(prev.passage, duration, prev.testType, prev.targetCount);
       setMetrics(calculateCurrentMetrics(updated));
       return updated;
     });
@@ -174,9 +180,25 @@ export function useTypingEngine({
     }, 0);
   }, [focusTypingArea]);
 
-  const setPassage = useCallback((passage: Passage) => {
+  const setPassage = useCallback((passage: Passage, testType?: TestType, targetCount?: number) => {
     setState((prev) => {
-      const updated = createInitialState(passage, prev.duration);
+      const updated = createInitialState(
+        passage,
+        prev.duration,
+        testType ?? prev.testType ?? 'time',
+        targetCount ?? prev.targetCount
+      );
+      setMetrics(calculateCurrentMetrics(updated));
+      return updated;
+    });
+    setTimeout(() => {
+      focusTypingArea();
+    }, 0);
+  }, [focusTypingArea]);
+
+  const setTestType = useCallback((testType: TestType, targetCount?: number) => {
+    setState((prev) => {
+      const updated = createInitialState(prev.passage, prev.duration, testType, targetCount);
       setMetrics(calculateCurrentMetrics(updated));
       return updated;
     });
@@ -338,6 +360,7 @@ export function useTypingEngine({
     completeTest,
     setDuration,
     setPassage,
+    setTestType,
     recentKey,
     handleKeyDown,
     handleBeforeInput,

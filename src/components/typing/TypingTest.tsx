@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTypingEngine } from '@/engine/useTypingEngine';
 import { DEFAULT_PASSAGE, PASSAGES } from '@/data/passages';
-import { DEFAULT_HINDI_PASSAGE, HINDI_PASSAGES } from '@/data/hindiPassages';
 import { analyzeTypingResult } from '@/engine/analytics';
 import { generatePracticePlan, PracticeType } from '@/engine/practiceEngine';
 import { createHistoryEntry, saveHistoryEntry } from '@/engine/progressStorage';
@@ -17,6 +16,8 @@ import { ExamProfile } from '@/engine/examTypes';
 import { TestDuration, TypingLanguage } from '@/engine/types';
 import { formatDuration } from '@/utils/metrics';
 import VirtualKeyboard from '@/components/keyboard/VirtualKeyboard';
+import { ENCOURAGEMENT_TITLES, getNextEncouragementTitle } from '@/data/encouragementTitles';
+import { generateTestPassage, TestDifficulty, TestType } from '@/engine/passageGenerator';
 
 export interface TypingTestProps {
   initialTestMode?: 'standard' | 'exam';
@@ -29,18 +30,38 @@ const DURATIONS: { label: string; value: TestDuration }[] = [
   { label: '10m', value: 600 },
 ];
 
+const WORD_TARGETS: number[] = [25, 50, 100, 250, 500];
+const CHAR_TARGETS: number[] = [100, 250, 500, 1000, 2000];
+
+const DIFFICULTIES: { label: string; value: TestDifficulty }[] = [
+  { label: 'Easy', value: 'easy' },
+  { label: 'Standard', value: 'medium' },
+  { label: 'Hard', value: 'hard' },
+];
+
 export const TypingTest: React.FC<TypingTestProps> = ({
   initialTestMode = 'standard',
 }) => {
   const [viewMode, setViewMode] = useState<'test' | 'practice'>('test');
   const [practiceType, setPracticeType] = useState<PracticeType>('characters');
   const [testMode, setTestMode] = useState<'standard' | 'exam'>(initialTestMode);
+  const [testType, setTestTypeState] = useState<TestType>('time');
   const [selectedLanguage, setSelectedLanguage] = useState<TypingLanguage>('en');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<TestDifficulty>('medium');
+  const [selectedWordTarget, setSelectedWordTarget] = useState<number>(50);
+  const [selectedCharTarget, setSelectedCharTarget] = useState<number>(250);
   const [selectedExamProfile, setSelectedExamProfile] = useState<ExamProfile>(getDefaultExamProfile());
-  const [activeDropdown, setActiveDropdown] = useState<'duration' | 'language' | 'mode' | 'topic' | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<'target' | 'type' | 'language' | 'difficulty' | null>(null);
   const [showKeyboard, setShowKeyboard] = useState<boolean>(false);
+  const [titleIndex, setTitleIndex] = useState<number>(0);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const examProfiles = useMemo(() => getAllExamProfiles(), []);
+
+  // Set random title on client mount to avoid SSR hydration mismatch
+  useEffect(() => {
+    const initial = getNextEncouragementTitle(0);
+    setTitleIndex(initial.index);
+  }, []);
 
   // Restore keyboard visibility preference on mount
   useEffect(() => {
@@ -91,15 +112,15 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     if (initialTestMode === 'exam') {
       return PASSAGES.find((p) => p.id === defaultExam.passageId) || DEFAULT_PASSAGE;
     }
-    return DEFAULT_PASSAGE;
+    return generateTestPassage({
+      language: 'en',
+      difficulty: 'medium',
+      testType: 'time',
+      targetCount: 60,
+    });
   }, [initialTestMode, defaultExam]);
 
   const initialDurationForMode = initialTestMode === 'exam' ? defaultExam.duration : 60;
-
-  const activePassages = useMemo(
-    () => (selectedLanguage === 'hi' ? HINDI_PASSAGES : PASSAGES),
-    [selectedLanguage]
-  );
 
   const {
     state,
@@ -111,6 +132,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     completeTest,
     setDuration,
     setPassage,
+    setTestType,
     recentKey,
     handleKeyDown,
     handleBeforeInput,
@@ -123,26 +145,97 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   } = useTypingEngine({
     initialPassage: initialPassageForMode,
     initialDuration: initialDurationForMode,
+    initialTestType: 'time',
   });
+
+  const handleRetest = useCallback(() => {
+    const next = getNextEncouragementTitle(titleIndex);
+    setTitleIndex(next.index);
+    restart();
+  }, [titleIndex, restart]);
 
   const handleSelectLanguage = (lang: TypingLanguage) => {
     if (lang === selectedLanguage || state.status === 'running') return;
     setSelectedLanguage(lang);
-    const newPassage = lang === 'hi' ? DEFAULT_HINDI_PASSAGE : DEFAULT_PASSAGE;
-    setPassage(newPassage);
+    if (testMode === 'exam') {
+      setActiveDropdown(null);
+      return;
+    }
+    const target =
+      testType === 'words'
+        ? selectedWordTarget
+        : testType === 'characters'
+        ? selectedCharTarget
+        : state.duration;
+    const newPassage = generateTestPassage({
+      language: lang,
+      difficulty: selectedDifficulty,
+      testType,
+      targetCount: target,
+    });
+    setPassage(newPassage, testType, target);
+    setActiveDropdown(null);
+    restart();
+  };
+
+  const handleSelectDifficulty = (diff: TestDifficulty) => {
+    setSelectedDifficulty(diff);
+    if (testMode === 'exam') {
+      setActiveDropdown(null);
+      return;
+    }
+    const target =
+      testType === 'words'
+        ? selectedWordTarget
+        : testType === 'characters'
+        ? selectedCharTarget
+        : state.duration;
+    const newPassage = generateTestPassage({
+      language: selectedLanguage,
+      difficulty: diff,
+      testType,
+      targetCount: target,
+    });
+    setPassage(newPassage, testType, target);
+    setActiveDropdown(null);
+    restart();
+  };
+
+  const handleSelectTestType = (type: TestType) => {
+    if (testMode === 'exam') {
+      setTestMode('standard');
+    }
+    setTestTypeState(type);
+    setTestType(type);
+    const target =
+      type === 'words'
+        ? selectedWordTarget
+        : type === 'characters'
+        ? selectedCharTarget
+        : state.duration;
+    const newPassage = generateTestPassage({
+      language: selectedLanguage,
+      difficulty: selectedDifficulty,
+      testType: type,
+      targetCount: target,
+    });
+    setPassage(newPassage, type, target);
     setActiveDropdown(null);
     restart();
   };
 
   const handleSelectStandardMode = () => {
-    if (testMode === 'standard') {
-      setActiveDropdown(null);
-      return;
-    }
     setTestMode('standard');
+    setTestTypeState('time');
+    setTestType('time');
     setDuration(60);
-    const defaultPassage = selectedLanguage === 'hi' ? DEFAULT_HINDI_PASSAGE : DEFAULT_PASSAGE;
-    setPassage(defaultPassage);
+    const newPassage = generateTestPassage({
+      language: selectedLanguage,
+      difficulty: selectedDifficulty,
+      testType: 'time',
+      targetCount: 60,
+    });
+    setPassage(newPassage, 'time', 60);
     setActiveDropdown(null);
     restart();
   };
@@ -152,13 +245,46 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setSelectedExamProfile(profile);
     setDuration(profile.duration);
     const examPassage = PASSAGES.find((p) => p.id === profile.passageId) || DEFAULT_PASSAGE;
-    setPassage(examPassage);
+    setPassage(examPassage, 'time', profile.duration);
     setActiveDropdown(null);
     restart();
   };
 
   const handleSelectDuration = (dur: TestDuration) => {
     setDuration(dur);
+    const newPassage = generateTestPassage({
+      language: selectedLanguage,
+      difficulty: selectedDifficulty,
+      testType: 'time',
+      targetCount: dur,
+    });
+    setPassage(newPassage, 'time', dur);
+    setActiveDropdown(null);
+    restart();
+  };
+
+  const handleSelectWordTarget = (words: number) => {
+    setSelectedWordTarget(words);
+    const newPassage = generateTestPassage({
+      language: selectedLanguage,
+      difficulty: selectedDifficulty,
+      testType: 'words',
+      targetCount: words,
+    });
+    setPassage(newPassage, 'words', words);
+    setActiveDropdown(null);
+    restart();
+  };
+
+  const handleSelectCharTarget = (chars: number) => {
+    setSelectedCharTarget(chars);
+    const newPassage = generateTestPassage({
+      language: selectedLanguage,
+      difficulty: selectedDifficulty,
+      testType: 'characters',
+      targetCount: chars,
+    });
+    setPassage(newPassage, 'characters', chars);
     setActiveDropdown(null);
     restart();
   };
@@ -174,14 +300,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && viewMode === 'test' && activeDropdown === null) {
-        restart();
+        handleRetest();
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [viewMode, activeDropdown, restart]);
+  }, [viewMode, activeDropdown, handleRetest]);
 
   // Generate deterministic practice plan from latest test state
   const analytics = useMemo(() => analyzeTypingResult(state), [state]);
@@ -198,7 +324,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   useEffect(() => {
     if (viewMode === 'test' && state.status === 'completed' && state.endTime !== null) {
       // Unique fingerprint preventing duplicate saves during re-renders
-      const completionFingerprint = `${state.startTime}_${state.endTime}_${state.duration}_${state.totalKeystrokes}_${testMode}_${state.passage.language}`;
+      const completionFingerprint = `${state.startTime}_${state.endTime}_${state.duration}_${state.totalKeystrokes}_${testMode}_${state.passage.language}_${testType}`;
       if (lastSavedTestRef.current !== completionFingerprint) {
         lastSavedTestRef.current = completionFingerprint;
         const entry = createHistoryEntry(
@@ -221,21 +347,39 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     state,
     analytics,
     testMode,
+    testType,
     selectedExamProfile.id,
   ]);
 
-  const durationLabel = useMemo(() => {
+  // Labels for rectangular controls
+  const targetLabel = useMemo(() => {
     if (testMode === 'exam') {
-      return formatDuration(selectedExamProfile.duration);
+      return { prefix: 'TIME', value: formatDuration(selectedExamProfile.duration) };
+    }
+    if (testType === 'words') {
+      return { prefix: 'WORDS', value: `${selectedWordTarget}` };
+    }
+    if (testType === 'characters') {
+      return { prefix: 'CHARS', value: `${selectedCharTarget}` };
     }
     const match = DURATIONS.find((d) => d.value === state.duration);
-    return match ? match.label : `${state.duration}s`;
-  }, [testMode, selectedExamProfile.duration, state.duration]);
+    return { prefix: 'TIME', value: match ? match.label : `${state.duration}s` };
+  }, [testMode, testType, selectedWordTarget, selectedCharTarget, selectedExamProfile.duration, state.duration]);
 
-  const modeLabel = useMemo(() => {
-    if (testMode === 'standard') return 'Standard';
-    return selectedExamProfile.shortName;
-  }, [testMode, selectedExamProfile.shortName]);
+  const testTypeLabel = useMemo(() => {
+    if (testMode === 'exam') return `Exam (${selectedExamProfile.shortName})`;
+    if (testType === 'words') return 'Words';
+    if (testType === 'characters') return 'Characters';
+    return 'Time';
+  }, [testMode, testType, selectedExamProfile.shortName]);
+
+  const difficultyLabel = useMemo(() => {
+    const match = DIFFICULTIES.find((d) => d.value === selectedDifficulty);
+    return match ? match.label : 'Standard';
+  }, [selectedDifficulty]);
+
+  const keyboardName = selectedLanguage === 'hi' ? 'InScript' : 'QWERTY';
+  const currentTitle = ENCOURAGEMENT_TITLES[titleIndex] ?? ENCOURAGEMENT_TITLES[0];
 
   // If in practice session view
   if (viewMode === 'practice') {
@@ -253,112 +397,141 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
   return (
     <section className="typing-test-container" aria-label="Typing test engine workspace">
-      {/* 1. Streamlined Contextual Controls Bar */}
+      {/* 1. Large Encouragement Title with Typewriter Reveal */}
+      <div className="encouragement-title-container" data-testid="encouragement-title">
+        <h1
+          key={titleIndex}
+          className="encouragement-title-text encouragement-title-animated"
+        >
+          {currentTitle}
+        </h1>
+      </div>
+
+      {/* 2. Modern Rectangular Contextual Control Toolbar:
+             Order: 1. Time/Target | 2. Test Type | 3. Language | 4. Difficulty | 5. Keyboard | 6. Retest */}
       <div className="test-compact-toolbar" ref={toolbarRef} role="toolbar" aria-label="Test configuration">
-        {/* Duration Pill */}
-        <div className="toolbar-pill-wrapper">
+        {/* 1. Time / Target Count Control */}
+        <div className="toolbar-pill-wrapper" data-testid="duration-selector">
           <button
             type="button"
-            className={`toolbar-pill ${activeDropdown === 'duration' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'duration' ? null : 'duration'))}
+            className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
             disabled={state.status === 'running' || testMode === 'exam'}
             aria-haspopup="true"
-            aria-expanded={activeDropdown === 'duration'}
-            title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : 'Select duration'}
+            aria-expanded={activeDropdown === 'target'}
+            title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
           >
-            <span>{durationLabel}</span>
+            <span className="control-label">{targetLabel.prefix}</span>
+            <span className="control-value">{targetLabel.value}</span>
             {testMode !== 'exam' && <span className="pill-arrow" aria-hidden="true">▾</span>}
           </button>
 
-          {activeDropdown === 'duration' && testMode !== 'exam' && (
+          {activeDropdown === 'target' && testMode !== 'exam' && (
             <div className="toolbar-dropdown" role="menu">
-              {DURATIONS.map((d) => (
-                <button
-                  key={d.value}
-                  type="button"
-                  role="menuitem"
-                  className={`toolbar-dropdown-item ${state.duration === d.value ? 'selected' : ''}`}
-                  onClick={() => handleSelectDuration(d.value)}
-                >
-                  <span>{d.label}</span>
-                  {state.duration === d.value && <span className="item-check">✓</span>}
-                </button>
-              ))}
+              {testType === 'time' &&
+                DURATIONS.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${state.duration === d.value ? 'selected' : ''}`}
+                    onClick={() => handleSelectDuration(d.value)}
+                  >
+                    <span>{d.label}</span>
+                    {state.duration === d.value && <span className="item-check">✓</span>}
+                  </button>
+                ))}
+
+              {testType === 'words' &&
+                WORD_TARGETS.map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${selectedWordTarget === count ? 'selected' : ''}`}
+                    onClick={() => handleSelectWordTarget(count)}
+                  >
+                    <span>{count} words</span>
+                    {selectedWordTarget === count && <span className="item-check">✓</span>}
+                  </button>
+                ))}
+
+              {testType === 'characters' &&
+                CHAR_TARGETS.map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${selectedCharTarget === count ? 'selected' : ''}`}
+                    onClick={() => handleSelectCharTarget(count)}
+                  >
+                    <span>{count} chars</span>
+                    {selectedCharTarget === count && <span className="item-check">✓</span>}
+                  </button>
+                ))}
             </div>
           )}
         </div>
 
-        {/* Language Pill */}
-        <div className="toolbar-pill-wrapper" data-testid="language-selector">
+        {/* 2. Test Type Control (Time | Words | Characters) */}
+        <div className="toolbar-pill-wrapper" data-testid="test-type-selector">
           <button
             type="button"
-            className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'language' ? null : 'language'))}
+            className={`toolbar-pill ${activeDropdown === 'type' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'type' ? null : 'type'))}
             disabled={state.status === 'running'}
             aria-haspopup="true"
-            aria-expanded={activeDropdown === 'language'}
-            title="Select language"
+            aria-expanded={activeDropdown === 'type'}
+            title="Select test type"
           >
-            <span>{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
+            <span className="control-label">TYPE</span>
+            <span className="control-value">{testTypeLabel}</span>
             <span className="pill-arrow" aria-hidden="true">▾</span>
           </button>
 
-          {activeDropdown === 'language' && (
-            <div className="toolbar-dropdown" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="lang-en-btn"
-                className={`toolbar-dropdown-item ${selectedLanguage === 'en' ? 'selected' : ''}`}
-                onClick={() => handleSelectLanguage('en')}
-              >
-                <span>English</span>
-                {selectedLanguage === 'en' && <span className="item-check">✓</span>}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="lang-hi-btn"
-                className={`toolbar-dropdown-item ${selectedLanguage === 'hi' ? 'selected' : ''}`}
-                onClick={() => handleSelectLanguage('hi')}
-              >
-                <span>हिंदी</span>
-                {selectedLanguage === 'hi' && <span className="item-check">✓</span>}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Mode Pill */}
-        <div className="toolbar-pill-wrapper">
-          <button
-            type="button"
-            className={`toolbar-pill ${activeDropdown === 'mode' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'mode' ? null : 'mode'))}
-            disabled={state.status === 'running'}
-            aria-haspopup="true"
-            aria-expanded={activeDropdown === 'mode'}
-            title="Select test mode"
-          >
-            <span>{modeLabel}</span>
-            <span className="pill-arrow" aria-hidden="true">▾</span>
-          </button>
-
-          {activeDropdown === 'mode' && (
+          {activeDropdown === 'type' && (
             <div className="toolbar-dropdown toolbar-dropdown-wide" role="menu">
-              <div className="dropdown-section-title">Standard</div>
+              <div className="dropdown-section-title">Standard Modes</div>
               <button
                 type="button"
                 role="menuitem"
-                data-testid="mode-standard-btn"
-                className={`toolbar-dropdown-item ${testMode === 'standard' ? 'selected' : ''}`}
-                onClick={handleSelectStandardMode}
+                data-testid="type-time-btn"
+                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'time' ? 'selected' : ''}`}
+                onClick={() => handleSelectTestType('time')}
               >
                 <div>
-                  <div className="item-title">Standard Test</div>
-                  <div className="item-subtitle">Speed and accuracy practice</div>
+                  <div className="item-title">Time Test</div>
+                  <div className="item-subtitle">Timed speed challenge (60s, 3m, 5m, 10m)</div>
                 </div>
-                {testMode === 'standard' && <span className="item-check">✓</span>}
+                {testMode === 'standard' && testType === 'time' && <span className="item-check">✓</span>}
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="type-words-btn"
+                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'words' ? 'selected' : ''}`}
+                onClick={() => handleSelectTestType('words')}
+              >
+                <div>
+                  <div className="item-title">Words Test</div>
+                  <div className="item-subtitle">Fixed target word count (25, 50, 100, 250, 500)</div>
+                </div>
+                {testMode === 'standard' && testType === 'words' && <span className="item-check">✓</span>}
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="type-characters-btn"
+                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'characters' ? 'selected' : ''}`}
+                onClick={() => handleSelectTestType('characters')}
+              >
+                <div>
+                  <div className="item-title">Characters Test</div>
+                  <div className="item-subtitle">Fixed character volume (100, 250, 500, 1000, 2000)</div>
+                </div>
+                {testMode === 'standard' && testType === 'characters' && <span className="item-check">✓</span>}
               </button>
 
               <div className="dropdown-section-title" data-testid="mode-exam-btn">Gov. Exam Simulations</div>
@@ -388,53 +561,83 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           )}
         </div>
 
-        {/* Topic Pill (Standard mode only) */}
-        {testMode === 'standard' && (
-          <div className="toolbar-pill-wrapper">
-            <button
-              type="button"
-              className={`toolbar-pill ${activeDropdown === 'topic' ? 'active' : ''}`}
-              onClick={() => setActiveDropdown((prev) => (prev === 'topic' ? null : 'topic'))}
-              disabled={state.status === 'running'}
-              aria-haspopup="true"
-              aria-expanded={activeDropdown === 'topic'}
-              title="Select topic passage"
-            >
-              <span>Topic</span>
-              <span className="pill-arrow" aria-hidden="true">▾</span>
-            </button>
+        {/* 3. Language Control */}
+        <div className="toolbar-pill-wrapper" data-testid="language-selector">
+          <button
+            type="button"
+            className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'language' ? null : 'language'))}
+            disabled={state.status === 'running'}
+            aria-haspopup="true"
+            aria-expanded={activeDropdown === 'language'}
+            title="Select language"
+          >
+            <span className="control-label">LANG</span>
+            <span className="control-value">{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
+            <span className="pill-arrow" aria-hidden="true">▾</span>
+          </button>
 
-            {activeDropdown === 'topic' && (
-              <div className="toolbar-dropdown toolbar-dropdown-wide" role="menu">
-                <div className="dropdown-section-title">Passages ({selectedLanguage === 'hi' ? 'हिंदी' : 'English'})</div>
-                {activePassages.map((p) => {
-                  const isSelected = state.passage.id === p.id;
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      role="menuitem"
-                      className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
-                      onClick={() => {
-                        setPassage(p);
-                        setActiveDropdown(null);
-                        restart();
-                      }}
-                    >
-                      <div>
-                        <div className="item-title">{p.title}</div>
-                        <div className="item-subtitle" style={{ textTransform: 'capitalize' }}>Difficulty: {p.difficulty}</div>
-                      </div>
-                      {isSelected && <span className="item-check">✓</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+          {activeDropdown === 'language' && (
+            <div className="toolbar-dropdown" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="lang-en-btn"
+                className={`toolbar-dropdown-item ${selectedLanguage === 'en' ? 'selected' : ''}`}
+                onClick={() => handleSelectLanguage('en')}
+              >
+                <span>English</span>
+                {selectedLanguage === 'en' && <span className="item-check">✓</span>}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="lang-hi-btn"
+                className={`toolbar-dropdown-item ${selectedLanguage === 'hi' ? 'selected' : ''}`}
+                onClick={() => handleSelectLanguage('hi')}
+              >
+                <span>हिंदी</span>
+                {selectedLanguage === 'hi' && <span className="item-check">✓</span>}
+              </button>
+            </div>
+          )}
+        </div>
 
-        {/* Virtual Keyboard Toggle Pill */}
+        {/* 4. Difficulty Control */}
+        <div className="toolbar-pill-wrapper" data-testid="difficulty-selector">
+          <button
+            type="button"
+            className={`toolbar-pill ${activeDropdown === 'difficulty' ? 'active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'difficulty' ? null : 'difficulty'))}
+            disabled={state.status === 'running'}
+            aria-haspopup="true"
+            aria-expanded={activeDropdown === 'difficulty'}
+            title="Select difficulty"
+          >
+            <span className="control-label">DIFFICULTY</span>
+            <span className="control-value">{difficultyLabel}</span>
+            <span className="pill-arrow" aria-hidden="true">▾</span>
+          </button>
+
+          {activeDropdown === 'difficulty' && (
+            <div className="toolbar-dropdown" role="menu">
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d.value}
+                  type="button"
+                  role="menuitem"
+                  className={`toolbar-dropdown-item ${selectedDifficulty === d.value ? 'selected' : ''}`}
+                  onClick={() => handleSelectDifficulty(d.value)}
+                >
+                  <span>{d.label}</span>
+                  {selectedDifficulty === d.value && <span className="item-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 5. Virtual Keyboard Control */}
         <button
           type="button"
           className={`toolbar-pill ${showKeyboard ? 'active' : ''}`}
@@ -443,20 +646,32 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           aria-pressed={showKeyboard}
           title={showKeyboard ? 'Hide virtual keyboard' : 'Show virtual keyboard'}
         >
-          <span>⌨️ Keyboard</span>
+          <span className="control-label">KEYBOARD</span>
+          <span className="control-value">⌨️ {keyboardName}</span>
         </button>
 
-        {/* Restart Button */}
+        {/* 6. Retest Button */}
         <button
           type="button"
-          onClick={restart}
+          onClick={handleRetest}
+          data-testid="retest-btn"
           className="toolbar-pill toolbar-pill-reset"
-          title="Restart Test (Esc)"
+          title="Retest (Esc)"
         >
-          <span>↺ Reset</span>
+          <span className="control-value">↺ Retest</span>
         </button>
 
-        {/* Hidden complete-test trigger for deterministic testing */}
+        {/* Hidden test-mode and complete-test triggers for deterministic automated tests */}
+        <button
+          type="button"
+          data-testid="mode-standard-btn"
+          onClick={handleSelectStandardMode}
+          style={{ display: 'none' }}
+          aria-hidden="true"
+          tabIndex={-1}
+        >
+          Standard Test
+        </button>
         <button
           type="button"
           data-testid="complete-test-btn"
@@ -488,8 +703,8 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       {isCompleted ? (
         <ResultCard
           state={state}
-          onRestart={restart}
-          onChangeTest={restart}
+          onRestart={handleRetest}
+          onChangeTest={handleRetest}
           onPracticeMistakes={() => setViewMode('practice')}
           testMode={testMode}
           examProfile={testMode === 'exam' ? selectedExamProfile : undefined}
@@ -501,10 +716,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             <ExamInstructionsCard profile={selectedExamProfile} />
           )}
 
-          {/* Live Metrics — above the passage */}
-          <MetricsBar metrics={metrics} />
+          {/* Live Metrics: GWPM | Net WPM | Accuracy | Time | Errors */}
+          <MetricsBar metrics={metrics} testType={testType} initialDuration={state.duration} />
 
-          {/* Primary Typing Passage */}
+          {/* Primary 5-Line Rolling Typing Passage */}
           <PassageDisplay
             characters={state.characters}
             extraCharacters={state.extraCharacters}
@@ -524,7 +739,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             onBlur={handleBlur}
           />
 
-          {/* Helper Instructions below passage */}
+          {/* Helper Guidance below passage */}
           <div className="test-guidance-line">
             <span>
               {state.status === 'idle'
@@ -536,11 +751,11 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 : 'Test in progress — keep typing!'}
             </span>
             <span className="reset-shortcut-hint">
-              <kbd>Esc</kbd> to restart
+              <kbd>Esc</kbd> to retest
             </span>
           </div>
 
-          {/* Optional Virtual Keyboard (collapsed by default) */}
+          {/* Optional Compact Virtual Keyboard (below passage, ~60% width on desktop) */}
           {showKeyboard && (
             <div className="test-keyboard-wrapper">
               <VirtualKeyboard

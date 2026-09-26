@@ -1,0 +1,126 @@
+/**
+ * 100 Curated, Motivational, Factual, and Non-Deceptive Encouragement Titles for TypingSpeed.
+ * None of these titles make false percentile or ranking claims.
+ */
+
+export const ENCOURAGEMENT_TITLES: string[] = [
+  "Build speed one accurate keystroke at a time.",
+  "Your next best typing score starts here.",
+  "Stay accurate. Let your speed follow.",
+  "Every keystroke is deliberate practice.",
+  "Focus on precision, then build your velocity.",
+  "Make every keystroke count.",
+  "Train your accuracy to unlock effortless speed.",
+  "Smooth rhythm leads to lasting velocity.",
+  "Keep your hands relaxed and your focus sharp.",
+  "Consistent daily practice builds lasting muscle memory.",
+  "Precision first, speed will naturally follow.",
+  "Calm hands type faster and make fewer mistakes.",
+  "Small daily improvements create exceptional typing speed.",
+  "Breathe, focus on the passage, and find your rhythm.",
+  "Master the home row, master the entire keyboard.",
+  "Fluency comes from patience and repetition.",
+  "Confidence on the keyboard starts with correct posture.",
+  "Great typists look ahead, not down at the keys.",
+  "Every practice session strengthens your muscle memory.",
+  "Turn hesitation into fluid, uninterrupted motion.",
+  "Rhythm and cadence beat rushing every single time.",
+  "Focus on clean keystrokes and let momentum take over.",
+  "Accuracy today becomes effortless velocity tomorrow.",
+  "Quiet your mind, steady your fingers, and type smoothly.",
+  "Each sentence is an opportunity to refine your technique.",
+  "Deliberate practice transforms effort into natural habit.",
+  "Speed is simply accuracy delivered at a steady pace.",
+  "Keep your fingertips light and responsive on every key.",
+  "Typing mastery is built word by word, day by day.",
+  "Trust your muscle memory and keep your gaze on the text.",
+  "Steady tempo prevents errors and boosts confidence.",
+  "Precision is the foundation of professional typing.",
+  "Stay relaxed. Tension is the enemy of typing speed.",
+  "Good typing habits start with patient practice.",
+  "Focus your attention on the upcoming words.",
+  "Consistent rhythm creates consistent results.",
+  "Embrace mistakes as clues to where your fingers hesitate.",
+  "Smoothness over speed. Speed comes as a consequence.",
+  "Your keyboard is an instrument; play it with rhythm.",
+  "Develop confidence one clean sentence at a time.",
+  "Train your mind to read ahead of your fingertips.",
+  "Proper finger placement makes every word easier.",
+  "Typing effortlessly begins with relaxed shoulders and wrists.",
+  "Quality practice always outperforms mindless repetition.",
+  "Refine your technique and the numbers will follow.",
+  "Stay centered, stay accurate, and keep moving forward.",
+  "Fluid keystrokes make long typing sessions easy.",
+  "Great speed is born from disciplined, patient practice.",
+  "Trust the process. Your fingers are learning every second.",
+  "Focus on the current word without rushing the next.",
+  "Speed flourishes when accuracy becomes second nature.",
+  "A calm approach turns difficult words into smooth keystrokes.",
+  "Every single minute spent practicing sharpens your skills.",
+  "Keep your posture upright and your keystrokes crisp.",
+  "Let your fingers dance across the keys with light touch.",
+  "Accuracy is the shortest path to high speed.",
+  "Practice deliberately, observe calmly, improve continuously.",
+  "Your typing journey is measured in steady progress.",
+  "Rhythmic typing creates sustainable high velocity.",
+  "Target clean strokes and watch your Net WPM rise.",
+  "Stay patient with difficult letter combinations.",
+  "Confidence grows with every completed passage.",
+  "Turn conscious effort into subconscious reflex.",
+  "Keep your rhythm steady through punctuation and spaces.",
+  "Deliberate focus turns challenging words into easy ones.",
+  "Mastering key transitions unlocks true typing fluency.",
+  "Your dedication today will reflect in tomorrow's speed.",
+  "Clear focus leads to clean, uninterrupted typing.",
+  "Smooth keypresses prevent fatigue and reduce mistakes.",
+  "Treat each test as a stepping stone to mastery.",
+  "Patience at the start creates velocity at the finish.",
+  "Consistent tempo is the secret of seasoned typists.",
+  "Keep your eyes on the passage and let muscle memory guide you.",
+  "Every accurate keypress reinforces optimal finger paths.",
+  "Approach each test with renewed focus and energy.",
+  "Accuracy preserves your momentum and builds true speed.",
+  "Relax your hands, align your posture, and begin.",
+  "Consistent practice bridges the gap between effort and ease.",
+  "Notice your progress and celebrate steady gains.",
+  "Focus on clarity, rhythm, and gentle key strikes.",
+  "Light finger movement is the key to endurance.",
+  "Sharpen your focus on the text before you begin.",
+  "Typing with precision opens the door to high performance.",
+  "Every session brings you closer to your typing goals.",
+  "Maintain steady cadence through every sentence.",
+  "Confidence comes from knowing each key's exact location.",
+  "Keep your attention locked on the current line.",
+  "Fluidity is the true measure of keyboard mastery.",
+  "Build habits that make accurate typing feel effortless.",
+  "Strong fundamentals make complex text easy to type.",
+  "A calm typist is a fast, accurate typist.",
+  "Look ahead, breathe evenly, and strike keys cleanly.",
+  "Continuous improvement is built on small daily tests.",
+  "Speed without accuracy is haste; seek true precision.",
+  "Allow your muscle memory to carry the rhythm.",
+  "Stay engaged with every word you type.",
+  "Steady hands and focused eyes yield great scores.",
+  "Each keystroke brings you closer to effortless fluency.",
+  "Dedicate this test to clean form and steady pacing.",
+  "Master the keys, unlock your productivity.",
+];
+
+/**
+ * Returns a random title from the 100-title list, avoiding immediate repetition
+ * when a previous index is provided.
+ */
+export function getNextEncouragementTitle(currentIndex?: number): { title: string; index: number } {
+  if (ENCOURAGEMENT_TITLES.length <= 1) {
+    return { title: ENCOURAGEMENT_TITLES[0] ?? '', index: 0 };
+  }
+  let nextIndex: number;
+  do {
+    nextIndex = Math.floor(Math.random() * ENCOURAGEMENT_TITLES.length);
+  } while (nextIndex === currentIndex);
+
+  return {
+    title: ENCOURAGEMENT_TITLES[nextIndex],
+    index: nextIndex,
+  };
+}

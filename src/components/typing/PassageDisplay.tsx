@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CharacterItem, ExtraCharacterItem, TestStatus, TypingLanguage } from '@/engine/types';
 
 interface CharacterToken {
@@ -49,6 +49,10 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
 }) => {
   const isCompleted = status === 'completed';
   const isHindi = language === 'hi';
+  const [lineOffsetPx, setLineOffsetPx] = useState<number>(0);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const textContainerRef = useRef<HTMLDivElement>(null);
+  const caretRef = useRef<HTMLSpanElement>(null);
 
   // Group characters into non-breaking word units and whitespace wrapping boundaries
   const tokens = useMemo(() => {
@@ -88,6 +92,26 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
     return result;
   }, [characters]);
 
+  // Rolling 5-line calculation: shifts completed lines upward
+  useEffect(() => {
+    if (currentIndex === 0) {
+      setLineOffsetPx(0);
+      return;
+    }
+
+    if (caretRef.current && textContainerRef.current) {
+      const caretEl = caretRef.current;
+      const containerEl = textContainerRef.current;
+      const caretTop = caretEl.offsetTop - containerEl.offsetTop;
+      const computedLineHeight =
+        parseFloat(window.getComputedStyle(containerEl).lineHeight) || (isHindi ? 46 : 38);
+
+      const lineIndex = Math.max(0, Math.floor((caretTop + 4) / computedLineHeight));
+      const targetOffset = lineIndex * computedLineHeight;
+      setLineOffsetPx(targetOffset);
+    }
+  }, [currentIndex, isHindi]);
+
   const renderChar = (item: CharacterItem, index: number) => {
     const isCurrent = index === currentIndex && !isCompleted;
     let stateClass = 'char-untyped';
@@ -99,12 +123,13 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
     }
 
     return (
-      <span key={index} className={`char ${stateClass}`}>
-        {isCurrent && <span className="caret-cursor" />}
+      <span key={index} className={`char ${stateClass}`} data-char-index={index}>
+        {isCurrent && <span className="caret-cursor" ref={caretRef} />}
         {item.char}
       </span>
     );
   };
+
   return (
     <div
       className={`typing-canvas-wrapper ${isFocused ? 'focused' : ''}`}
@@ -154,38 +179,47 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
         </div>
       )}
 
-      {/* Passage Display with non-breaking word units */}
-      <div className={`passage-text ${isHindi ? 'lang-hi' : ''}`} aria-hidden="true">
-        {tokens.map((token) => {
-          if (token.type === 'word') {
-            return (
-              <span key={token.key} className="word">
-                {token.chars.map(({ item, index }) => renderChar(item, index))}
-              </span>
-            );
-          }
-          return renderChar(token.char.item, token.char.index);
-        })}
+      {/* Rolling 5-line passage viewport */}
+      <div className={`passage-scroll-viewport ${isHindi ? 'lang-hi' : ''}`} ref={viewportRef}>
+        <div
+          ref={textContainerRef}
+          className={`passage-text ${isHindi ? 'lang-hi' : ''}`}
+          style={{
+            transform: `translateY(-${lineOffsetPx}px)`,
+            transition: 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          }}
+          aria-hidden="true"
+        >
+          {tokens.map((token) => {
+            if (token.type === 'word') {
+              return (
+                <span key={token.key} className="word">
+                  {token.chars.map(({ item, index }) => renderChar(item, index))}
+                </span>
+              );
+            }
+            return renderChar(token.char.item, token.char.index);
+          })}
 
-        {/* Extra characters typed past the passage boundary */}
-        {extraCharacters.length > 0 && (
-          <span className="word word-extra">
-            {extraCharacters.map((extra, idx) => (
-              <span key={`extra-${idx}`} className="char char-extra">
-                {extra.char}
-              </span>
-            ))}
-          </span>
-        )}
+          {/* Extra characters typed past the passage boundary */}
+          {extraCharacters.length > 0 && (
+            <span className="word word-extra">
+              {extraCharacters.map((extra, idx) => (
+                <span key={`extra-${idx}`} className="char char-extra">
+                  {extra.char}
+                </span>
+              ))}
+            </span>
+          )}
 
-        {/* Cursor at the end of text when typing extra characters */}
-        {currentIndex >= characters.length && !isCompleted && (
-          <span className="caret-cursor" />
-        )}
+          {/* Cursor at the end of text when typing extra characters */}
+          {currentIndex >= characters.length && !isCompleted && (
+            <span className="caret-cursor" ref={caretRef} />
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
 export default PassageDisplay;
-

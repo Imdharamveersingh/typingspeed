@@ -4,7 +4,7 @@ import Link from 'next/link';
 export const Footer: React.FC = () => {
   return (
     <footer className="app-footer" role="contentinfo">
-      <div className="container footer-inner">
+      <div className="footer-inner">
         <div>
           <p style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: '2px' }}>
             TypingSpeed
