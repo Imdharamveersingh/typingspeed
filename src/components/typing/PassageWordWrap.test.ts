@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CharacterItem } from '@/engine/types';
 import { segmentGraphemes } from '@/engine/textUtils';
+import { calculateRollingOffset } from './PassageDisplay';
 
 // Helper function implementing the same grouping algorithm as PassageDisplay
 function groupCharactersIntoTokens(characters: CharacterItem[]) {
@@ -116,3 +117,101 @@ describe('Passage Word-Wrapping Architecture', () => {
     expect(words[3].chars.map((c) => c.item.char).join('')).toBe('reliable.');
   });
 });
+
+describe('5-Line Rolling Passage Window Offset Calculation', () => {
+  const LINE_HEIGHT_EN = 38;
+  const LINE_HEIGHT_HI = 46;
+
+  it('keeps offset at 0 for visual line 1 (caret on line 1)', () => {
+    // Caret at very start
+    expect(calculateRollingOffset(0, LINE_HEIGHT_EN)).toEqual({
+      lineIndex: 0,
+      targetOffset: 0,
+    });
+
+    // Caret somewhere midway through line 1
+    expect(calculateRollingOffset(15, LINE_HEIGHT_EN)).toEqual({
+      lineIndex: 0,
+      targetOffset: 0,
+    });
+  });
+
+  it('keeps offset at 0 for visual line 2 so line 1 remains visible while typing line 2', () => {
+    // Caret is on visual line 2 (offset ~38px): Line 1 must remain visible above it
+    const result = calculateRollingOffset(LINE_HEIGHT_EN, LINE_HEIGHT_EN);
+    expect(result.lineIndex).toBe(1);
+    expect(result.targetOffset).toBe(0); // Line 1 remains visible, no premature roll!
+
+    // Typing horizontally across line 2
+    expect(calculateRollingOffset(LINE_HEIGHT_EN + 10, LINE_HEIGHT_EN)).toEqual({
+      lineIndex: 1,
+      targetOffset: 0,
+    });
+  });
+
+  it('shifts passage upward by 1 line height only when typing enters line 3', () => {
+    // Caret on visual line 3 (offset ~76px): Line 1 rolls out, Line 2 is top, Line 3 is active
+    const result = calculateRollingOffset(LINE_HEIGHT_EN * 2, LINE_HEIGHT_EN);
+    expect(result.lineIndex).toBe(2);
+    expect(result.targetOffset).toBe(38); // Exactly 1 line-height shift!
+  });
+
+  it('shifts passage upward by 2 lines when moving onto visual line 4', () => {
+    // Caret on visual line 4 (offset ~114px): Line 2 rolls out, Line 3 is top, Line 4 is active
+    const result = calculateRollingOffset(LINE_HEIGHT_EN * 3, LINE_HEIGHT_EN);
+    expect(result.lineIndex).toBe(3);
+    expect(result.targetOffset).toBe(76); // Exactly 2 line-heights shift!
+  });
+
+  it('shifts continuously line by line as typing progresses through 10 lines', () => {
+    for (let line = 0; line < 10; line++) {
+      const caretTop = line * LINE_HEIGHT_EN + 2; // small subpixel offset within line
+      const result = calculateRollingOffset(caretTop, LINE_HEIGHT_EN);
+      expect(result.lineIndex).toBe(line);
+      const expectedOffset = Math.max(0, line - 1) * LINE_HEIGHT_EN;
+      expect(result.targetOffset).toBe(expectedOffset);
+    }
+  });
+
+  it('correctly calculates rolling offset for Hindi with larger line-height (46px)', () => {
+    // Caret on line 1
+    expect(calculateRollingOffset(20, LINE_HEIGHT_HI)).toEqual({
+      lineIndex: 0,
+      targetOffset: 0,
+    });
+
+    // Caret on line 2: offset remains 0
+    expect(calculateRollingOffset(46, LINE_HEIGHT_HI)).toEqual({
+      lineIndex: 1,
+      targetOffset: 0,
+    });
+
+    // Caret moves to line 3: shifts by 46px
+    expect(calculateRollingOffset(92, LINE_HEIGHT_HI)).toEqual({
+      lineIndex: 2,
+      targetOffset: 46,
+    });
+
+    // Caret moves to line 4: shifts by 92px
+    expect(calculateRollingOffset(138, LINE_HEIGHT_HI)).toEqual({
+      lineIndex: 3,
+      targetOffset: 92,
+    });
+  });
+
+  it('gracefully handles boundary and invalid inputs', () => {
+    expect(calculateRollingOffset(-10, LINE_HEIGHT_EN)).toEqual({
+      lineIndex: 0,
+      targetOffset: 0,
+    });
+    expect(calculateRollingOffset(50, 0)).toEqual({
+      lineIndex: 0,
+      targetOffset: 0,
+    });
+    expect(calculateRollingOffset(0, -38)).toEqual({
+      lineIndex: 0,
+      targetOffset: 0,
+    });
+  });
+});
+

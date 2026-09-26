@@ -19,7 +19,7 @@ interface VirtualKeyboardProps {
   onToggleVisible?: () => void;
 }
 
-export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
+export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = React.memo(({
   typingState,
   language,
   recentKey,
@@ -173,6 +173,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
       )}
     </div>
   );
-};
+});
+
+VirtualKeyboard.displayName = 'VirtualKeyboard';
 
 export default VirtualKeyboard;

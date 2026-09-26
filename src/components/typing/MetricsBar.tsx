@@ -6,11 +6,13 @@ interface MetricsBarProps {
   metrics: TypingMetrics;
   testType?: TestType;
   initialDuration?: number;
+  targetProgress?: { current: number; total: number } | null;
 }
 
 export const MetricsBar: React.FC<MetricsBarProps> = React.memo(({
   metrics,
   testType = 'time',
+  targetProgress,
 }) => {
   const isCountMode = testType === 'words' || testType === 'characters';
   // Time mode: countdown of remaining seconds. Words/Chars mode: elapsed seconds.
@@ -54,6 +56,18 @@ export const MetricsBar: React.FC<MetricsBarProps> = React.memo(({
         </div>
         <div className="metric-label">Errors</div>
       </div>
+
+      {/* 6. Target Progress — strictly shown only in Words or Characters mode */}
+      {targetProgress && (
+        <div className="metric-card metric-target-progress" data-testid="target-progress">
+          <div className="metric-value highlight">
+            {targetProgress.current} / {targetProgress.total}
+          </div>
+          <div className="metric-label">
+            {testType === 'words' ? 'Words' : 'Characters'}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

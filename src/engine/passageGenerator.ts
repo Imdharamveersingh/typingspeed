@@ -1,4 +1,4 @@
-import { Passage, TypingLanguage } from './types';
+import { CharacterItem, Passage, TypingLanguage, TypingState } from './types';
 import { PASSAGES } from '@/data/passages';
 import { HINDI_PASSAGES } from '@/data/hindiPassages';
 import { segmentGraphemes } from './textUtils';
@@ -89,7 +89,7 @@ export function generateTestPassage({
   }
 
   // Default: Time mode — provide an abundant supply of text so user never runs out
-  const targetWords = 2000;
+  const targetWords = 1000;
   const allWords: string[] = [];
   for (const text of sources) {
     allWords.push(...text.split(/\s+/).filter(Boolean));
@@ -113,3 +113,45 @@ export function generateTestPassage({
     difficulty,
   };
 }
+
+/**
+ * Dynamically appends additional text to a TypingState passage in Time mode
+ * so that the user never runs out of text while the test is still running.
+ */
+export function appendPassageContent(
+  state: TypingState,
+  additionalWordCount: number = 80
+): TypingState {
+  const language = state.passage.language;
+  const difficulty = state.passage.difficulty;
+  const sources = getSourceTexts(language, difficulty);
+
+  const allWords: string[] = [];
+  for (const text of sources) {
+    allWords.push(...text.split(/\s+/).filter(Boolean));
+  }
+  if (allWords.length === 0) return state;
+
+  const currentWords = state.passage.text.split(/\s+/).filter(Boolean).length;
+  const newWords: string[] = [];
+  for (let i = 0; i < additionalWordCount; i++) {
+    newWords.push(allWords[(currentWords + i) % allWords.length]);
+  }
+
+  const addedText = ' ' + newWords.join(' ');
+  const addedGraphemes = segmentGraphemes(addedText, language);
+  const addedCharacters: CharacterItem[] = addedGraphemes.map((char) => ({
+    char,
+    state: 'untyped',
+  }));
+
+  return {
+    ...state,
+    passage: {
+      ...state.passage,
+      text: state.passage.text + addedText,
+    },
+    characters: [...state.characters, ...addedCharacters],
+  };
+}
+

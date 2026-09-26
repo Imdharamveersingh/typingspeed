@@ -1,14 +1,20 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CharacterItem, ExtraCharacterItem, TestStatus, TypingLanguage } from '@/engine/types';
 
-interface CharacterToken {
-  item: CharacterItem;
+interface WordTokenMeta {
+  type: 'word';
+  key: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+interface SpaceTokenMeta {
+  type: 'space';
+  key: string;
   index: number;
 }
 
-type PassageToken =
-  | { type: 'word'; key: string; chars: CharacterToken[] }
-  | { type: 'space'; key: string; char: CharacterToken };
+type PassageTokenMeta = WordTokenMeta | SpaceTokenMeta;
 
 interface PassageDisplayProps {
   characters: CharacterItem[];
@@ -27,6 +33,142 @@ interface PassageDisplayProps {
   onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => void;
   onFocus: () => void;
   onBlur: () => void;
+}
+
+interface WordComponentProps {
+  meta: WordTokenMeta;
+  characters: CharacterItem[];
+  currentIndex: number;
+  isCompleted: boolean;
+  caretRef: React.RefObject<HTMLSpanElement | null>;
+}
+
+const WordComponent = React.memo(
+  function WordComponent({
+    meta,
+    characters,
+    currentIndex,
+    isCompleted,
+    caretRef,
+  }: WordComponentProps) {
+    const chars = [];
+    for (let i = meta.startIndex; i <= meta.endIndex; i++) {
+      const item = characters[i];
+      const isCurrent = i === currentIndex && !isCompleted;
+      let stateClass = 'char-untyped';
+      if (item.state === 'correct') {
+        stateClass = 'char-correct';
+      } else if (item.state === 'incorrect') {
+        stateClass = 'char-incorrect';
+      }
+
+      chars.push(
+        <span key={i} className={`char ${stateClass}`} data-char-index={i}>
+          {isCurrent && <span className="caret-cursor" ref={caretRef} />}
+          {item.char}
+        </span>
+      );
+    }
+
+    return <span className="word">{chars}</span>;
+  },
+  (prev, next) => {
+    const wasActive =
+      prev.currentIndex >= prev.meta.startIndex &&
+      prev.currentIndex <= prev.meta.endIndex + 1;
+    const isActive =
+      next.currentIndex >= next.meta.startIndex &&
+      next.currentIndex <= next.meta.endIndex + 1;
+
+    // If word is completely outside the active cursor boundary in both states
+    if (!wasActive && !isActive) {
+      if (prev.characters === next.characters) return true;
+      for (let i = prev.meta.startIndex; i <= prev.meta.endIndex; i++) {
+        if (prev.characters[i] !== next.characters[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // If active in either state, re-render unless both index and character states are identical
+    if (
+      prev.currentIndex === next.currentIndex &&
+      prev.isCompleted === next.isCompleted
+    ) {
+      for (let i = prev.meta.startIndex; i <= prev.meta.endIndex; i++) {
+        if (prev.characters[i] !== next.characters[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    return false;
+  }
+);
+
+interface SpaceComponentProps {
+  item: CharacterItem;
+  index: number;
+  isCurrent: boolean;
+  caretRef: React.RefObject<HTMLSpanElement | null>;
+}
+
+const SpaceComponent = React.memo(
+  function SpaceComponent({
+    item,
+    index,
+    isCurrent,
+    caretRef,
+  }: SpaceComponentProps) {
+    let stateClass = 'char-untyped';
+    if (item.state === 'correct') {
+      stateClass = 'char-correct';
+    } else if (item.state === 'incorrect') {
+      stateClass = 'char-incorrect';
+    }
+
+    return (
+      <span className={`char ${stateClass}`} data-char-index={index}>
+        {isCurrent && <span className="caret-cursor" ref={caretRef} />}
+        {item.char}
+      </span>
+    );
+  },
+  (prev, next) =>
+    prev.item === next.item &&
+    prev.isCurrent === next.isCurrent
+);
+
+/**
+ * Computes visual line index and rolling offset from the active character's vertical position
+ * relative to the first character of the passage.
+ *
+ * 5-Line Rolling Model:
+ * - Line 0 (Visual line 1): offset = 0
+ * - Line 1 (Visual line 2): offset = 0 (Line 1 remains visible above Line 2)
+ * - Line 2 (Visual line 3): offset = 1 * lineHeight (Line 1 rolls away, Line 2 is top, Line 3 active)
+ * - Line 3 (Visual line 4): offset = 2 * lineHeight (Line 2 rolls away, Line 3 is top, Line 4 active)
+ * - Line N: offset = max(0, lineIndex - 1) * lineHeight
+ * - Typing within the same line never changes offset.
+ */
+export function calculateRollingOffset(
+  caretRelativeTop: number,
+  lineHeight: number
+): { lineIndex: number; targetOffset: number } {
+  if (caretRelativeTop <= 0 || lineHeight <= 0) {
+    return { lineIndex: 0, targetOffset: 0 };
+  }
+
+  // Visual line index (0-based) from rendered Y position with rounding tolerance
+  const lineIndex = Math.max(0, Math.round(caretRelativeTop / lineHeight));
+
+  // 5-line rolling window: keep the previous completed line visible above the active line
+  const rollingLines = Math.max(0, lineIndex - 1);
+  const targetOffset = rollingLines * lineHeight;
+
+  return { lineIndex, targetOffset };
 }
 
 export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
@@ -54,80 +196,136 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
   const textContainerRef = useRef<HTMLDivElement>(null);
   const caretRef = useRef<HTMLSpanElement>(null);
 
-  // Group characters into non-breaking word units and whitespace wrapping boundaries
-  const tokens = useMemo(() => {
-    const result: PassageToken[] = [];
-    let currentWordChars: CharacterToken[] = [];
+  const firstChar = characters[0]?.char;
+  const sampleChar = characters[10]?.char;
+  const charLength = characters.length;
+
+  // Passage identity fingerprint: only changes when text changes or test resets
+  const passageKey = useMemo(() => {
+    if (charLength === 0) return '';
+    return `${charLength}_${firstChar ?? ''}_${sampleChar ?? ''}`;
+  }, [charLength, firstChar, sampleChar]);
+
+  // Precompute static passage token metadata ONCE per passage
+  const tokensMeta = useMemo(() => {
+    const result: PassageTokenMeta[] = [];
+    let wordStart = -1;
     let wordCount = 0;
 
     for (let i = 0; i < characters.length; i++) {
-      const item = characters[i];
-      if (item.char === ' ' || item.char === '\n') {
-        if (currentWordChars.length > 0) {
+      const char = characters[i].char;
+      if (char === ' ' || char === '\n') {
+        if (wordStart !== -1) {
           result.push({
             type: 'word',
-            key: `word-${wordCount++}`,
-            chars: currentWordChars,
+            key: `w-${wordCount++}`,
+            startIndex: wordStart,
+            endIndex: i - 1,
           });
-          currentWordChars = [];
+          wordStart = -1;
         }
         result.push({
           type: 'space',
-          key: `space-${i}`,
-          char: { item, index: i },
+          key: `s-${i}`,
+          index: i,
         });
       } else {
-        currentWordChars.push({ item, index: i });
+        if (wordStart === -1) {
+          wordStart = i;
+        }
       }
     }
 
-    if (currentWordChars.length > 0) {
+    if (wordStart !== -1) {
       result.push({
         type: 'word',
-        key: `word-${wordCount++}`,
-        chars: currentWordChars,
+        key: `w-${wordCount++}`,
+        startIndex: wordStart,
+        endIndex: characters.length - 1,
       });
     }
 
     return result;
-  }, [characters]);
+  }, [passageKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rolling 5-line calculation: shifts completed lines upward without forced layout reflows
-  useEffect(() => {
+  // Precompute full passage string once for screen readers
+  const fullText = useMemo(() => {
+    return characters.map((c) => c.char).join('');
+  }, [passageKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Measure active character position relative to the passage origin using getBoundingClientRect
+  const updateRollingOffset = useCallback(() => {
     if (currentIndex === 0) {
-      setLineOffsetPx((prev) => (prev !== 0 ? 0 : prev));
+      setLineOffsetPx(0);
       return;
     }
 
-    if (caretRef.current && textContainerRef.current) {
-      const caretEl = caretRef.current;
-      const containerEl = textContainerRef.current;
-      const caretTop = caretEl.offsetTop - containerEl.offsetTop;
-      const baseLineHeight = isHindi ? 46 : 38;
+    const containerEl = textContainerRef.current;
+    if (!containerEl) return;
 
-      const lineIndex = Math.max(0, Math.floor((caretTop + 4) / baseLineHeight));
-      const targetOffset = lineIndex * baseLineHeight;
-      setLineOffsetPx((prev) => (prev !== targetOffset ? targetOffset : prev));
+    // Locate the first character element to establish stable passage origin
+    const firstCharEl =
+      (containerEl.querySelector('[data-char-index="0"]') as HTMLElement | null) ||
+      (containerEl.querySelector('.char') as HTMLElement | null);
+
+    // Prefer active character element, or active caret element
+    const activeCharEl =
+      (containerEl.querySelector(`[data-char-index="${currentIndex}"]`) as HTMLElement | null) ||
+      (caretRef.current ? (caretRef.current.closest('.char') as HTMLElement | null) : null) ||
+      (containerEl.querySelector('.char:last-of-type') as HTMLElement | null) ||
+      caretRef.current;
+
+    if (!activeCharEl) return;
+
+    // Use the character span wrapper to get the true visual line top (not underline bottom)
+    const charEl = (activeCharEl.closest('.char') as HTMLElement | null) || activeCharEl;
+
+    const charRect = charEl.getBoundingClientRect();
+    const originTop = firstCharEl
+      ? firstCharEl.getBoundingClientRect().top
+      : containerEl.getBoundingClientRect().top;
+    const caretRelativeTop = Math.max(0, charRect.top - originTop);
+
+    // Determine actual line height dynamically from computed styles with fallback
+    let lineHeight = isHindi ? 46 : 38;
+    try {
+      const computed = window.getComputedStyle(containerEl).lineHeight;
+      const parsed = parseFloat(computed);
+      if (parsed && !isNaN(parsed) && parsed > 20) {
+        lineHeight = parsed;
+      }
+    } catch {
+      // Fallback to default lineHeight
     }
+
+    const { targetOffset } = calculateRollingOffset(caretRelativeTop, lineHeight);
+
+    setLineOffsetPx((prev) => (prev !== targetOffset ? targetOffset : prev));
   }, [currentIndex, isHindi]);
 
-  const renderChar = (item: CharacterItem, index: number) => {
-    const isCurrent = index === currentIndex && !isCompleted;
-    let stateClass = 'char-untyped';
-
-    if (item.state === 'correct') {
-      stateClass = 'char-correct';
-    } else if (item.state === 'incorrect') {
-      stateClass = 'char-incorrect';
+  // Rolling 5-line calculation: decoupled via requestAnimationFrame to never block synchronous keystroke render
+  useEffect(() => {
+    if (currentIndex === 0) {
+      setLineOffsetPx(0);
+      return;
     }
 
-    return (
-      <span key={index} className={`char ${stateClass}`} data-char-index={index}>
-        {isCurrent && <span className="caret-cursor" ref={caretRef} />}
-        {item.char}
-      </span>
-    );
-  };
+    const frameId = requestAnimationFrame(updateRollingOffset);
+    return () => cancelAnimationFrame(frameId);
+  }, [currentIndex, updateRollingOffset]);
+
+  // Responsive support: recalculate rolling position whenever container size/viewport changes
+  useEffect(() => {
+    const containerEl = textContainerRef.current;
+    if (!containerEl || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => {
+      updateRollingOffset();
+    });
+    observer.observe(containerEl);
+
+    return () => observer.disconnect();
+  }, [updateRollingOffset]);
 
   return (
     <div
@@ -145,7 +343,7 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
     >
       {/* Accessible screen-reader mirror of the target passage text */}
       <span id="passage-accessible-text" className="sr-only">
-        {characters.map((c) => c.char).join('')}
+        {fullText}
       </span>
 
       <input
@@ -185,19 +383,32 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
           className={`passage-text ${isHindi ? 'lang-hi' : ''}`}
           style={{
             transform: `translateY(-${lineOffsetPx}px)`,
-            transition: 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            transition: 'transform 140ms ease-out',
           }}
           aria-hidden="true"
         >
-          {tokens.map((token) => {
+          {tokensMeta.map((token) => {
             if (token.type === 'word') {
               return (
-                <span key={token.key} className="word">
-                  {token.chars.map(({ item, index }) => renderChar(item, index))}
-                </span>
+                <WordComponent
+                  key={token.key}
+                  meta={token}
+                  characters={characters}
+                  currentIndex={currentIndex}
+                  isCompleted={isCompleted}
+                  caretRef={caretRef}
+                />
               );
             }
-            return renderChar(token.char.item, token.char.index);
+            return (
+              <SpaceComponent
+                key={token.key}
+                item={characters[token.index]}
+                index={token.index}
+                isCurrent={token.index === currentIndex && !isCompleted}
+                caretRef={caretRef}
+              />
+            );
           })}
 
           {/* Extra characters typed past the passage boundary */}
@@ -213,7 +424,7 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
 
           {/* Cursor at the end of text when typing extra characters */}
           {currentIndex >= characters.length && !isCompleted && (
-            <span className="caret-cursor" ref={caretRef} />
+            <span className="caret-cursor caret-trailing" ref={caretRef} />
           )}
         </div>
       </div>

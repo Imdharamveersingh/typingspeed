@@ -13,7 +13,6 @@ import {
   createInitialState,
   processInputText,
   processKeystroke,
-  tickTimer,
 } from './typingEngine';
 import { isControlKey } from './textUtils';
 
@@ -63,58 +62,29 @@ export function useTypingEngine({
   const [recentKey, setRecentKey] = useState<{ code?: string; status?: 'correct' | 'incorrect' } | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const animFrameRef = useRef<number | null>(null);
   const stateRef = useRef<TypingState>(state);
   const isComposingRef = useRef<boolean>(false);
   const lastCompositionEndTimeRef = useRef<number>(0);
   const recentKeyTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const timeModeCompletionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Keep stateRef in sync for animation loop
+  // Active-only typing clock tracking refs
+  const activeAccumulatedMsRef = useRef<number>(0);
+  const lastKeystrokeTimeRef = useRef<number | null>(null);
+  const lastTickTimeRef = useRef<number | null>(null);
+
+  // Keep stateRef in sync with state
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
-  // High-precision monotonic timer loop (performance.now())
+  // Clean up timers on unmount
   useEffect(() => {
-    if (state.status !== 'running') {
-      if (animFrameRef.current !== null) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
-      }
-      return;
-    }
-
-    const checkTimer = () => {
-      const now = performance.now();
-      const currentState = stateRef.current;
-
-      if (currentState.status === 'running') {
-        const updatedState = tickTimer(currentState, now);
-        const updatedMetrics = calculateCurrentMetrics(updatedState, now);
-
-        if (updatedState.status !== currentState.status) {
-          stateRef.current = updatedState;
-          setState(updatedState);
-          setMetrics(updatedMetrics);
-        } else {
-          setMetrics(updatedMetrics);
-        }
-
-        if (updatedState.status === 'running') {
-          animFrameRef.current = requestAnimationFrame(checkTimer);
-        }
-      }
-    };
-
-    animFrameRef.current = requestAnimationFrame(checkTimer);
-
     return () => {
-      if (animFrameRef.current !== null) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
-      }
+      if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
+      if (timeModeCompletionTimerRef.current) clearTimeout(timeModeCompletionTimerRef.current);
     };
-  }, [state.status]);
+  }, []);
 
   const focusTypingArea = useCallback(() => {
     if (inputRef.current) {
@@ -123,11 +93,104 @@ export function useTypingEngine({
     }
   }, []);
 
+  const registerActiveKeystroke = useCallback((now: number) => {
+    if (lastKeystrokeTimeRef.current === null) {
+      lastKeystrokeTimeRef.current = now;
+      lastTickTimeRef.current = now;
+      activeAccumulatedMsRef.current = 0;
+    } else {
+      const timeSinceLastKey = now - lastKeystrokeTimeRef.current;
+      // Idle threshold is 2000ms: only intervals within threshold count as active typing time
+      if (timeSinceLastKey <= 2000) {
+        const delta = Math.max(0, now - lastKeystrokeTimeRef.current);
+        activeAccumulatedMsRef.current += delta;
+      }
+      lastKeystrokeTimeRef.current = now;
+      lastTickTimeRef.current = now;
+    }
+  }, []);
+
+  const completeTest = useCallback(() => {
+    const current = stateRef.current;
+    if (current.status !== 'running' || current.startTime === null) return;
+    const isTimeMode = !current.testType || current.testType === 'time';
+    const effectiveAccumulatedMs = isTimeMode
+      ? Math.max(activeAccumulatedMsRef.current, current.duration * 1000)
+      : Math.max(100, activeAccumulatedMsRef.current);
+    const effectiveNow = current.startTime + effectiveAccumulatedMs;
+    const updated: TypingState = {
+      ...current,
+      status: 'completed',
+      endTime: effectiveNow,
+    };
+    stateRef.current = updated;
+    setState(updated);
+    setMetrics(calculateCurrentMetrics(updated, effectiveNow));
+    if (timeModeCompletionTimerRef.current) {
+      clearTimeout(timeModeCompletionTimerRef.current);
+      timeModeCompletionTimerRef.current = null;
+    }
+  }, []);
+
+  // Event-driven state and metrics commit on keystrokes
+  const applyKeystrokeResult = useCallback(
+    (nextState: TypingState, now: number) => {
+      let finalState = nextState;
+      const isTimeMode = !finalState.testType || finalState.testType === 'time';
+      const durationMs = finalState.duration * 1000;
+      const effectiveTime = (finalState.startTime ?? now) + activeAccumulatedMsRef.current;
+
+      // In Time mode: if accumulated active typing time reached duration, mark as completed immediately
+      if (
+        isTimeMode &&
+        finalState.status === 'running' &&
+        activeAccumulatedMsRef.current >= durationMs
+      ) {
+        finalState = {
+          ...finalState,
+          status: 'completed',
+          endTime: effectiveTime,
+        };
+      }
+
+      stateRef.current = finalState;
+      setState(finalState);
+      setMetrics(calculateCurrentMetrics(finalState, effectiveTime));
+
+      // Clear any pending completion timer
+      if (timeModeCompletionTimerRef.current) {
+        clearTimeout(timeModeCompletionTimerRef.current);
+        timeModeCompletionTimerRef.current = null;
+      }
+
+      // In Time mode: schedule one-shot completion timer only if remaining active time is within active threshold
+      if (isTimeMode && finalState.status === 'running') {
+        const remainingMs = durationMs - activeAccumulatedMsRef.current;
+        if (remainingMs > 0 && remainingMs <= 2000) {
+          timeModeCompletionTimerRef.current = setTimeout(() => {
+            if (stateRef.current.status === 'running') {
+              activeAccumulatedMsRef.current = durationMs;
+              completeTest();
+            }
+          }, remainingMs);
+        }
+      }
+    },
+    [completeTest]
+  );
+
   const restart = useCallback(() => {
     isComposingRef.current = false;
+    activeAccumulatedMsRef.current = 0;
+    lastKeystrokeTimeRef.current = null;
+    lastTickTimeRef.current = null;
     if (recentKeyTimerRef.current) {
       clearTimeout(recentKeyTimerRef.current);
       recentKeyTimerRef.current = null;
+    }
+    if (timeModeCompletionTimerRef.current) {
+      clearTimeout(timeModeCompletionTimerRef.current);
+      timeModeCompletionTimerRef.current = null;
     }
     setRecentKey(null);
     if (inputRef.current) {
@@ -144,21 +207,6 @@ export function useTypingEngine({
     }, 0);
   }, [focusTypingArea]);
 
-  const completeTest = useCallback(() => {
-    const current = stateRef.current;
-    if (current.status !== 'running' || current.startTime === null) return;
-    const now = performance.now();
-    const endTime = Math.max(now, current.startTime + 100);
-    const updated: TypingState = {
-      ...current,
-      status: 'completed',
-      endTime,
-    };
-    stateRef.current = updated;
-    setState(updated);
-    setMetrics(calculateCurrentMetrics(updated, endTime));
-  }, []);
-
   // Deterministic test completion listener for automated workflows & testing
   useEffect(() => {
     const handleCompleteEvent = () => {
@@ -171,6 +219,13 @@ export function useTypingEngine({
   }, [completeTest]);
 
   const setDuration = useCallback((duration: TestDuration) => {
+    activeAccumulatedMsRef.current = 0;
+    lastKeystrokeTimeRef.current = null;
+    lastTickTimeRef.current = null;
+    if (timeModeCompletionTimerRef.current) {
+      clearTimeout(timeModeCompletionTimerRef.current);
+      timeModeCompletionTimerRef.current = null;
+    }
     const current = stateRef.current;
     const updated = createInitialState(current.passage, duration, current.testType, current.targetCount);
     stateRef.current = updated;
@@ -182,6 +237,13 @@ export function useTypingEngine({
   }, [focusTypingArea]);
 
   const setPassage = useCallback((passage: Passage, testType?: TestType, targetCount?: number) => {
+    activeAccumulatedMsRef.current = 0;
+    lastKeystrokeTimeRef.current = null;
+    lastTickTimeRef.current = null;
+    if (timeModeCompletionTimerRef.current) {
+      clearTimeout(timeModeCompletionTimerRef.current);
+      timeModeCompletionTimerRef.current = null;
+    }
     const current = stateRef.current;
     const updated = createInitialState(
       passage,
@@ -198,6 +260,13 @@ export function useTypingEngine({
   }, [focusTypingArea]);
 
   const setTestType = useCallback((testType: TestType, targetCount?: number) => {
+    activeAccumulatedMsRef.current = 0;
+    lastKeystrokeTimeRef.current = null;
+    lastTickTimeRef.current = null;
+    if (timeModeCompletionTimerRef.current) {
+      clearTimeout(timeModeCompletionTimerRef.current);
+      timeModeCompletionTimerRef.current = null;
+    }
     const current = stateRef.current;
     const updated = createInitialState(current.passage, current.duration, testType, targetCount);
     stateRef.current = updated;
@@ -223,16 +292,15 @@ export function useTypingEngine({
       if (e.key === 'Backspace') {
         e.preventDefault();
         const now = performance.now();
+        registerActiveKeystroke(now);
         const current = stateRef.current;
         const next = processKeystroke(current, 'Backspace', now);
-        stateRef.current = next;
 
         setRecentKey({ code: 'Backspace', status: 'correct' });
         if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
         recentKeyTimerRef.current = setTimeout(() => setRecentKey(null), 150);
 
-        setState(next);
-        setMetrics(calculateCurrentMetrics(next, now));
+        applyKeystrokeResult(next, now);
         return;
       }
 
@@ -245,11 +313,11 @@ export function useTypingEngine({
       if (!isControlKey(e.key)) {
         e.preventDefault();
         const now = performance.now();
+        registerActiveKeystroke(now);
         const code = e.nativeEvent.code || e.code || e.key;
 
         const current = stateRef.current;
         const next = processKeystroke(current, e.key, now);
-        stateRef.current = next;
 
         const status: 'correct' | 'incorrect' =
           next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
@@ -258,11 +326,10 @@ export function useTypingEngine({
         if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
         recentKeyTimerRef.current = setTimeout(() => setRecentKey(null), 150);
 
-        setState(next);
-        setMetrics(calculateCurrentMetrics(next, now));
+        applyKeystrokeResult(next, now);
       }
     },
-    []
+    [registerActiveKeystroke, applyKeystrokeResult]
   );
 
   const handleCompositionStart = useCallback(() => {
@@ -277,18 +344,17 @@ export function useTypingEngine({
 
       if (committedText && stateRef.current.status !== 'completed') {
         const now = performance.now();
+        registerActiveKeystroke(now);
         const current = stateRef.current;
         const next = processInputText(current, committedText, now);
-        stateRef.current = next;
-        setState(next);
-        setMetrics(calculateCurrentMetrics(next, now));
+        applyKeystrokeResult(next, now);
       }
 
       if (inputRef.current) {
         inputRef.current.value = '';
       }
     },
-    []
+    [registerActiveKeystroke, applyKeystrokeResult]
   );
 
   // Fallback for mobile virtual keyboards that emit beforeInput
@@ -307,40 +373,41 @@ export function useTypingEngine({
       if (inputChar && !isControlKey(inputChar)) {
         e.preventDefault();
         const now = performance.now();
+        registerActiveKeystroke(now);
         const current = stateRef.current;
         const next = processInputText(current, inputChar, now);
-        stateRef.current = next;
-        setState(next);
-        setMetrics(calculateCurrentMetrics(next, now));
+        applyKeystrokeResult(next, now);
         if (inputRef.current) {
           inputRef.current.value = '';
         }
       }
     },
-    []
+    [registerActiveKeystroke, applyKeystrokeResult]
   );
 
   // Fallback for virtual keyboards or input methods that populate input.value directly
-  const handleInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
-    if (stateRef.current.status === 'completed' || isComposingRef.current) {
-      return;
-    }
+  const handleInput = useCallback(
+    (e: React.FormEvent<HTMLInputElement>) => {
+      if (stateRef.current.status === 'completed' || isComposingRef.current) {
+        return;
+      }
 
-    if (performance.now() - lastCompositionEndTimeRef.current < 20) {
-      return;
-    }
+      if (performance.now() - lastCompositionEndTimeRef.current < 20) {
+        return;
+      }
 
-    const val = (e.currentTarget as HTMLInputElement).value;
-    if (val && !isControlKey(val)) {
-      const now = performance.now();
-      const current = stateRef.current;
-      const next = processInputText(current, val, now);
-      stateRef.current = next;
-      setState(next);
-      setMetrics(calculateCurrentMetrics(next, now));
-      (e.currentTarget as HTMLInputElement).value = '';
-    }
-  }, []);
+      const val = (e.currentTarget as HTMLInputElement).value;
+      if (val && !isControlKey(val)) {
+        const now = performance.now();
+        registerActiveKeystroke(now);
+        const current = stateRef.current;
+        const next = processInputText(current, val, now);
+        applyKeystrokeResult(next, now);
+        (e.currentTarget as HTMLInputElement).value = '';
+      }
+    },
+    [registerActiveKeystroke, applyKeystrokeResult]
+  );
 
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
     // Strictly prevent pasting into the typing test

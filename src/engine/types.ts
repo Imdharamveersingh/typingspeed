@@ -58,4 +58,6 @@ export interface TypingState {
   totalKeystrokes: number;
   correctStrokes: number;
   incorrectStrokes: number;
+  lastKeystrokeTime?: number | null;
+  accumulatedActiveTimeMs?: number;
 }

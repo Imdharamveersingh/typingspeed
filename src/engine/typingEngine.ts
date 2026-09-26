@@ -17,6 +17,74 @@ import {
   isGraphemePrefix,
   segmentGraphemes,
 } from './textUtils';
+import { appendPassageContent } from './passageGenerator';
+
+/**
+ * Idle threshold in milliseconds. If the gap between keystrokes exceeds this duration,
+ * the active typing clock pauses at this threshold so idle time does not penalize or inflate metrics.
+ */
+export const IDLE_PAUSE_THRESHOLD_MS = 2000;
+
+/**
+ * Derives the accumulated active typing time in seconds for the given state.
+ * Idle pauses beyond IDLE_PAUSE_THRESHOLD_MS are excluded.
+ */
+export function getActiveTypingSeconds(
+  state: TypingState,
+  currentTimestamp?: number
+): number {
+  if (state.status === 'idle' || state.startTime === null) {
+    return 0;
+  }
+
+  const accumulated = state.accumulatedActiveTimeMs ?? 0;
+
+  if (state.status === 'completed') {
+    return Math.max(0.1, accumulated / 1000);
+  }
+
+  const now =
+    currentTimestamp ??
+    (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const lastKey = state.lastKeystrokeTime ?? state.startTime;
+  const delta = Math.max(0, now - lastKey);
+  const activeTail = Math.min(delta, IDLE_PAUSE_THRESHOLD_MS);
+
+  return Math.max(0, (accumulated + activeTail) / 1000);
+}
+
+/**
+ * Calculates the exact completed word count up to currentIndex.
+ * A word is counted as completed when the cursor has progressed past its boundary (space or newline).
+ */
+export function getCompletedWordCount(state: TypingState): number {
+  if (state.currentIndex <= 0) return 0;
+  let words = 0;
+  let inWord = false;
+
+  for (let i = 0; i < state.currentIndex; i++) {
+    const char = state.characters[i].char;
+    if (char === ' ' || char === '\n') {
+      if (inWord) {
+        words++;
+        inWord = false;
+      }
+    } else {
+      inWord = true;
+    }
+  }
+
+  // If at or past the end of the passage and currently ending a word
+  if (state.currentIndex >= state.characters.length && inWord) {
+    words++;
+  }
+
+  if (state.targetCount && state.testType === 'words') {
+    return Math.min(words, state.targetCount);
+  }
+
+  return words;
+}
 
 /**
  * Initializes a new typing test state for a given passage and duration.
@@ -48,6 +116,8 @@ export function createInitialState(
     totalKeystrokes: 0,
     correctStrokes: 0,
     incorrectStrokes: 0,
+    lastKeystrokeTime: null,
+    accumulatedActiveTimeMs: 0,
   };
 }
 
@@ -55,13 +125,25 @@ export function createInitialState(
  * Pure state reducer processing a single keystroke or character input event.
  */
 export function processKeystroke(
-  state: TypingState,
+  initialState: TypingState,
   key: string,
   timestamp: number
 ): TypingState {
   // If test is completed, reject any further typing
-  if (state.status === 'completed') {
-    return state;
+  if (initialState.status === 'completed') {
+    return initialState;
+  }
+
+  let state = initialState;
+
+  // In Time mode: maintain abundant text supply so the passage never runs out before time ends
+  const isTimeMode = !state.testType || state.testType === 'time';
+  if (
+    isTimeMode &&
+    (state.characters.length >= 300 || state.passage.id.startsWith('gen-')) &&
+    state.characters.length - state.currentIndex < 150
+  ) {
+    state = appendPassageContent(state, 80);
   }
 
   // Handle Backspace
@@ -119,12 +201,22 @@ export function processKeystroke(
     return state;
   }
 
-  // If currently idle, the first printable keystroke starts the test
+  // Active typing time accumulator calculation:
+  // If idle, this first keystroke starts the clock
   let currentStartTime = state.startTime;
   let currentStatus = state.status;
-  if (state.status === 'idle') {
+  let newAccumulatedActiveMs = state.accumulatedActiveTimeMs ?? 0;
+
+  if (state.status === 'idle' || currentStartTime === null) {
     currentStatus = 'running';
     currentStartTime = timestamp;
+    newAccumulatedActiveMs = 0;
+  } else {
+    // Subsequent keystroke: add active delta up to the idle threshold
+    const lastKey = state.lastKeystrokeTime ?? currentStartTime;
+    const delta = Math.max(0, timestamp - lastKey);
+    const activeDelta = Math.min(delta, IDLE_PAUSE_THRESHOLD_MS);
+    newAccumulatedActiveMs += activeDelta;
   }
 
   const updatedTotalKeystrokes = state.totalKeystrokes + 1;
@@ -160,6 +252,8 @@ export function processKeystroke(
         currentIndex: nextIndex,
         totalKeystrokes: updatedTotalKeystrokes,
         correctStrokes: state.correctStrokes + 1,
+        lastKeystrokeTime: timestamp,
+        accumulatedActiveTimeMs: newAccumulatedActiveMs,
       };
     }
 
@@ -180,6 +274,8 @@ export function processKeystroke(
         characters: updatedCharacters,
         totalKeystrokes: updatedTotalKeystrokes,
         correctStrokes: state.correctStrokes + 1,
+        lastKeystrokeTime: timestamp,
+        accumulatedActiveTimeMs: newAccumulatedActiveMs,
       };
     }
 
@@ -204,6 +300,8 @@ export function processKeystroke(
           currentIndex: state.currentIndex + 1,
           totalKeystrokes: state.totalKeystrokes,
           incorrectStrokes: state.incorrectStrokes + 1,
+          lastKeystrokeTime: timestamp,
+          accumulatedActiveTimeMs: newAccumulatedActiveMs,
         };
 
         // Process the new key on the next position
@@ -234,6 +332,8 @@ export function processKeystroke(
       currentIndex: nextIndex,
       totalKeystrokes: updatedTotalKeystrokes,
       incorrectStrokes: state.incorrectStrokes + 1,
+      lastKeystrokeTime: timestamp,
+      accumulatedActiveTimeMs: newAccumulatedActiveMs,
     };
   }
 
@@ -245,6 +345,8 @@ export function processKeystroke(
     extraCharacters: [...state.extraCharacters, { char: key }],
     totalKeystrokes: updatedTotalKeystrokes,
     incorrectStrokes: state.incorrectStrokes + 1,
+    lastKeystrokeTime: timestamp,
+    accumulatedActiveTimeMs: newAccumulatedActiveMs,
   };
 }
 
@@ -290,12 +392,13 @@ export function tickTimer(
 
   const elapsedMs = currentTimestamp - state.startTime;
   const durationMs = state.duration * 1000;
+  const activeElapsed = getActiveTypingSeconds(state, currentTimestamp);
 
-  if (elapsedMs >= durationMs) {
+  if (activeElapsed >= state.duration || elapsedMs >= durationMs) {
     return {
       ...state,
       status: 'completed',
-      endTime: state.startTime + durationMs,
+      endTime: currentTimestamp,
     };
   }
 
@@ -311,10 +414,9 @@ export function calculateCurrentMetrics(
 ): TypingMetrics {
   const { status, startTime, endTime, duration, totalKeystrokes, characters, extraCharacters, testType } = state;
 
+  const isCountMode = testType === 'words' || testType === 'characters';
   let elapsedSeconds: number = 0;
   let remainingSeconds: number = duration;
-
-  const isCountMode = testType === 'words' || testType === 'characters';
 
   if (status === 'running' && startTime !== null) {
     const now = currentTimestamp ?? (typeof performance !== 'undefined' ? performance.now() : Date.now());

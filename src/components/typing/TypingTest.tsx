@@ -7,6 +7,7 @@ import { analyzeTypingResult } from '@/engine/analytics';
 import { generatePracticePlan, PracticeType } from '@/engine/practiceEngine';
 import { createHistoryEntry, saveHistoryEntry } from '@/engine/progressStorage';
 import MetricsBar from './MetricsBar';
+import TypingProgressBar from './TypingProgressBar';
 import PassageDisplay from './PassageDisplay';
 import ResultCard from './ResultCard';
 import PracticeSession from '@/components/practice/PracticeSession';
@@ -16,8 +17,8 @@ import { ExamProfile } from '@/engine/examTypes';
 import { TestDuration, TypingLanguage } from '@/engine/types';
 import { formatDuration } from '@/utils/metrics';
 import VirtualKeyboard from '@/components/keyboard/VirtualKeyboard';
-import { ENCOURAGEMENT_TITLES, getNextEncouragementTitle } from '@/data/encouragementTitles';
 import { generateTestPassage, TestDifficulty, TestType } from '@/engine/passageGenerator';
+import { getCompletedWordCount } from '@/engine/typingEngine';
 
 export interface TypingTestProps {
   initialTestMode?: 'standard' | 'exam';
@@ -39,6 +40,398 @@ const DIFFICULTIES: { label: string; value: TestDifficulty }[] = [
   { label: 'Hard', value: 'hard' },
 ];
 
+
+/**
+ * Isolated Exam Active Bar Component — memoized so it never re-renders during active typing
+ */
+const ExamActiveBar = React.memo(function ExamActiveBar({
+  profile,
+}: {
+  profile: ExamProfile;
+}) {
+  return (
+    <div className="exam-mode-active-bar" data-testid="exam-active-bar">
+      <span className="exam-active-title">
+        Preset: <strong>{profile.name}</strong>
+      </span>
+      <span className="exam-active-target">
+        Target: <strong>{profile.targetValue} WPM</strong>
+      </span>
+      <span className="exam-active-duration">
+        Duration: <strong>{formatDuration(profile.duration)}</strong>
+      </span>
+    </div>
+  );
+});
+
+interface TestToolbarProps {
+  toolbarRef: React.RefObject<HTMLDivElement | null>;
+  activeDropdown: 'target' | 'type' | 'language' | 'difficulty' | 'settings' | null;
+  setActiveDropdown: React.Dispatch<React.SetStateAction<'target' | 'type' | 'language' | 'difficulty' | 'settings' | null>>;
+  isRunning: boolean;
+  testMode: 'standard' | 'exam';
+  testType: TestType;
+  testTypeLabel: string;
+  targetLabel: { prefix: string; value: string };
+  selectedLanguage: TypingLanguage;
+  difficultyLabel: string;
+  examProfiles: ExamProfile[];
+  selectedExamProfile: ExamProfile;
+  selectedWordTarget: number;
+  selectedCharTarget: number;
+  selectedDifficulty: TestDifficulty;
+  duration: TestDuration;
+  showKeyboard: boolean;
+  onToggleKeyboard: () => void;
+  onSelectTestType: (type: TestType) => void;
+  onSelectExamProfile: (p: ExamProfile) => void;
+  onSelectDuration: (dur: TestDuration) => void;
+  onSelectWordTarget: (words: number) => void;
+  onSelectCharTarget: (chars: number) => void;
+  onSelectLanguage: (lang: TypingLanguage) => void;
+  onSelectDifficulty: (diff: TestDifficulty) => void;
+  onRetest: () => void;
+  onSelectStandardMode: () => void;
+  onCompleteTest: () => void;
+}
+
+/**
+ * Isolated Compact Toolbar Component — memoized so all 6 buttons and popups skip rendering during active typing
+ */
+const TestToolbar = React.memo(function TestToolbar({
+  toolbarRef,
+  activeDropdown,
+  setActiveDropdown,
+  isRunning,
+  testMode,
+  testType,
+  testTypeLabel,
+  targetLabel,
+  selectedLanguage,
+  difficultyLabel,
+  examProfiles,
+  selectedExamProfile,
+  selectedWordTarget,
+  selectedCharTarget,
+  selectedDifficulty,
+  duration,
+  showKeyboard,
+  onToggleKeyboard,
+  onSelectTestType,
+  onSelectExamProfile,
+  onSelectDuration,
+  onSelectWordTarget,
+  onSelectCharTarget,
+  onSelectLanguage,
+  onSelectDifficulty,
+  onRetest,
+  onSelectStandardMode,
+  onCompleteTest,
+}: TestToolbarProps) {
+  return (
+    <div className="test-compact-toolbar" ref={toolbarRef} role="toolbar" aria-label="Test configuration">
+      {/* 1. Test Type Control (Time | Words | Characters) — FIRST */}
+      <div className="toolbar-pill-wrapper" data-testid="test-type-selector">
+        <button
+          type="button"
+          className={`toolbar-pill ${activeDropdown === 'type' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''}`}
+          onClick={() => setActiveDropdown((prev) => (prev === 'type' ? null : 'type'))}
+          disabled={isRunning}
+          aria-haspopup="true"
+          aria-expanded={activeDropdown === 'type'}
+          title="Select test type"
+        >
+          <span className="control-label">TYPE</span>
+          <span className="control-value">{testTypeLabel}</span>
+          <span className="pill-arrow" aria-hidden="true">▾</span>
+        </button>
+
+        {activeDropdown === 'type' && (
+          <div className="toolbar-dropdown toolbar-dropdown-wide" role="menu">
+            <div className="dropdown-section-title">Standard Modes</div>
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="type-time-btn"
+              className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'time' ? 'selected' : ''}`}
+              onClick={() => onSelectTestType('time')}
+            >
+              <div>
+                <div className="item-title">Time Test</div>
+                <div className="item-subtitle">Timed speed challenge (60s, 3m, 5m, 10m)</div>
+              </div>
+              {testMode === 'standard' && testType === 'time' && <span className="item-check">✓</span>}
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="type-words-btn"
+              className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'words' ? 'selected' : ''}`}
+              onClick={() => onSelectTestType('words')}
+            >
+              <div>
+                <div className="item-title">Words Test</div>
+                <div className="item-subtitle">Fixed target word count (25, 50, 100, 250, 500)</div>
+              </div>
+              {testMode === 'standard' && testType === 'words' && <span className="item-check">✓</span>}
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="type-characters-btn"
+              className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'characters' ? 'selected' : ''}`}
+              onClick={() => onSelectTestType('characters')}
+            >
+              <div>
+                <div className="item-title">Characters Test</div>
+                <div className="item-subtitle">Fixed character volume (100, 250, 500, 1000, 2000)</div>
+              </div>
+              {testMode === 'standard' && testType === 'characters' && <span className="item-check">✓</span>}
+            </button>
+
+            <div className="dropdown-section-title" data-testid="mode-exam-btn">Gov. Exam Simulations</div>
+            {examProfiles.map((p) => {
+              const isSelected = testMode === 'exam' && selectedExamProfile.id === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="menuitem"
+                  data-testid={`exam-profile-${p.id}`}
+                  className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                  onClick={() => onSelectExamProfile(p)}
+                >
+                  <div>
+                    <div className="item-title">{p.name}</div>
+                    <div className="item-subtitle">
+                      {formatDuration(p.duration)} • Target {p.targetValue} WPM
+                      {p.minimumAccuracy ? ` • ${p.minimumAccuracy}% min acc` : ''}
+                    </div>
+                  </div>
+                  {isSelected && <span className="item-check">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 2. Time / Target Count Control — SECOND */}
+      <div className="toolbar-pill-wrapper" data-testid="duration-selector">
+        <button
+          type="button"
+          className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
+          onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
+          disabled={isRunning || testMode === 'exam'}
+          aria-haspopup="true"
+          aria-expanded={activeDropdown === 'target'}
+          title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
+        >
+          <span className="control-label">{targetLabel.prefix}</span>
+          <span className="control-value">{targetLabel.value}</span>
+          {testMode !== 'exam' && <span className="pill-arrow" aria-hidden="true">▾</span>}
+        </button>
+
+        {activeDropdown === 'target' && testMode !== 'exam' && (
+          <div className="toolbar-dropdown" role="menu">
+            {testType === 'time' &&
+              DURATIONS.map((d) => (
+                <button
+                  key={d.value}
+                  type="button"
+                  role="menuitem"
+                  className={`toolbar-dropdown-item ${duration === d.value ? 'selected' : ''}`}
+                  onClick={() => onSelectDuration(d.value)}
+                >
+                  <span>{d.label}</span>
+                  {duration === d.value && <span className="item-check">✓</span>}
+                </button>
+              ))}
+
+            {testType === 'words' &&
+              WORD_TARGETS.map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  role="menuitem"
+                  className={`toolbar-dropdown-item ${selectedWordTarget === count ? 'selected' : ''}`}
+                  onClick={() => onSelectWordTarget(count)}
+                >
+                  <span>{count} words</span>
+                  {selectedWordTarget === count && <span className="item-check">✓</span>}
+                </button>
+              ))}
+
+            {testType === 'characters' &&
+              CHAR_TARGETS.map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  role="menuitem"
+                  className={`toolbar-dropdown-item ${selectedCharTarget === count ? 'selected' : ''}`}
+                  onClick={() => onSelectCharTarget(count)}
+                >
+                  <span>{count} chars</span>
+                  {selectedCharTarget === count && <span className="item-check">✓</span>}
+                </button>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Language Control */}
+      <div className="toolbar-pill-wrapper" data-testid="language-selector">
+        <button
+          type="button"
+          className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''}`}
+          onClick={() => setActiveDropdown((prev) => (prev === 'language' ? null : 'language'))}
+          disabled={isRunning}
+          aria-haspopup="true"
+          aria-expanded={activeDropdown === 'language'}
+          title="Select language"
+        >
+          <span className="control-label">LANG</span>
+          <span className="control-value">{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
+          <span className="pill-arrow" aria-hidden="true">▾</span>
+        </button>
+
+        {activeDropdown === 'language' && (
+          <div className="toolbar-dropdown" role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="lang-en-btn"
+              className={`toolbar-dropdown-item ${selectedLanguage === 'en' ? 'selected' : ''}`}
+              onClick={() => onSelectLanguage('en')}
+            >
+              <span>English</span>
+              {selectedLanguage === 'en' && <span className="item-check">✓</span>}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="lang-hi-btn"
+              className={`toolbar-dropdown-item ${selectedLanguage === 'hi' ? 'selected' : ''}`}
+              onClick={() => onSelectLanguage('hi')}
+            >
+              <span>हिंदी</span>
+              {selectedLanguage === 'hi' && <span className="item-check">✓</span>}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Difficulty Control */}
+      <div className="toolbar-pill-wrapper" data-testid="difficulty-selector">
+        <button
+          type="button"
+          className={`toolbar-pill ${activeDropdown === 'difficulty' ? 'active' : ''}`}
+          onClick={() => setActiveDropdown((prev) => (prev === 'difficulty' ? null : 'difficulty'))}
+          disabled={isRunning}
+          aria-haspopup="true"
+          aria-expanded={activeDropdown === 'difficulty'}
+          title="Select difficulty"
+        >
+          <span className="control-label">DIFFICULTY</span>
+          <span className="control-value">{difficultyLabel}</span>
+          <span className="pill-arrow" aria-hidden="true">▾</span>
+        </button>
+
+        {activeDropdown === 'difficulty' && (
+          <div className="toolbar-dropdown" role="menu">
+            {DIFFICULTIES.map((d) => (
+              <button
+                key={d.value}
+                type="button"
+                role="menuitem"
+                className={`toolbar-dropdown-item ${selectedDifficulty === d.value ? 'selected' : ''}`}
+                onClick={() => onSelectDifficulty(d.value)}
+              >
+                <span>{d.label}</span>
+                {selectedDifficulty === d.value && <span className="item-check">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 5. Settings Control Popover with Virtual Keyboard toggle */}
+      <div className="toolbar-pill-wrapper" data-testid="settings-selector">
+        <button
+          type="button"
+          className={`toolbar-pill toolbar-pill-settings ${activeDropdown === 'settings' ? 'active' : ''}`}
+          data-testid="settings-btn"
+          onClick={() => setActiveDropdown((prev) => (prev === 'settings' ? null : 'settings'))}
+          aria-haspopup="true"
+          aria-expanded={activeDropdown === 'settings'}
+          title="Settings"
+        >
+          <span className="control-value">⚙ Settings</span>
+          <span className="pill-arrow" aria-hidden="true">▾</span>
+        </button>
+
+        {activeDropdown === 'settings' && (
+          <div className="toolbar-dropdown toolbar-dropdown-settings" role="menu">
+            <div className="dropdown-section-title">Settings</div>
+            <div className="settings-toggle-row">
+              <span className="settings-toggle-label">Virtual Keyboard</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showKeyboard}
+                data-testid="toggle-keyboard-btn"
+                className={`settings-switch-btn ${showKeyboard ? 'is-on' : 'is-off'}`}
+                onClick={onToggleKeyboard}
+                title={showKeyboard ? 'Hide virtual keyboard' : 'Show virtual keyboard'}
+              >
+                <span className="switch-pill">
+                  <span className="switch-dot" />
+                </span>
+                <span className="switch-status">{showKeyboard ? 'ON' : 'OFF'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 6. Retest Button */}
+      <button
+        type="button"
+        onClick={onRetest}
+        data-testid="retest-btn"
+        className="toolbar-pill toolbar-pill-reset"
+        title="Retest (Esc)"
+      >
+        <span className="control-value">↺ Retest</span>
+      </button>
+
+      {/* Hidden test-mode and complete-test triggers for deterministic automated tests */}
+      <button
+        type="button"
+        data-testid="mode-standard-btn"
+        onClick={onSelectStandardMode}
+        style={{ display: 'none' }}
+        aria-hidden="true"
+        tabIndex={-1}
+      >
+        Standard Test
+      </button>
+      <button
+        type="button"
+        data-testid="complete-test-btn"
+        onClick={onCompleteTest}
+        style={{ display: 'none' }}
+        aria-hidden="true"
+        tabIndex={-1}
+      >
+        Complete Test
+      </button>
+    </div>
+  );
+});
+
 export const TypingTest: React.FC<TypingTestProps> = ({
   initialTestMode = 'standard',
 }) => {
@@ -51,17 +444,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [selectedWordTarget, setSelectedWordTarget] = useState<number>(50);
   const [selectedCharTarget, setSelectedCharTarget] = useState<number>(250);
   const [selectedExamProfile, setSelectedExamProfile] = useState<ExamProfile>(getDefaultExamProfile());
-  const [activeDropdown, setActiveDropdown] = useState<'target' | 'type' | 'language' | 'difficulty' | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<'target' | 'type' | 'language' | 'difficulty' | 'settings' | null>(null);
   const [showKeyboard, setShowKeyboard] = useState<boolean>(false);
-  const [titleIndex, setTitleIndex] = useState<number>(0);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const examProfiles = useMemo(() => getAllExamProfiles(), []);
-
-  // Set random title on client mount to avoid SSR hydration mismatch
-  useEffect(() => {
-    const initial = getNextEncouragementTitle(0);
-    setTitleIndex(initial.index);
-  }, []);
 
   // Restore keyboard visibility preference on mount
   useEffect(() => {
@@ -75,7 +461,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
   }, []);
 
-  const handleToggleKeyboard = () => {
+  const handleToggleKeyboard = useCallback(() => {
     setShowKeyboard((prev) => {
       const next = !prev;
       try {
@@ -85,7 +471,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       }
       return next;
     });
-  };
+  }, []);
 
   // Close open dropdown on outside click or Escape
   useEffect(() => {
@@ -149,12 +535,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   });
 
   const handleRetest = useCallback(() => {
-    const next = getNextEncouragementTitle(titleIndex);
-    setTitleIndex(next.index);
     restart();
-  }, [titleIndex, restart]);
+  }, [restart]);
 
-  const handleSelectLanguage = (lang: TypingLanguage) => {
+  const handleSelectLanguage = useCallback((lang: TypingLanguage) => {
     if (lang === selectedLanguage || state.status === 'running') return;
     setSelectedLanguage(lang);
     if (testMode === 'exam') {
@@ -176,9 +560,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, testType, target);
     setActiveDropdown(null);
     restart();
-  };
+  }, [selectedLanguage, state.status, state.duration, testMode, testType, selectedWordTarget, selectedCharTarget, selectedDifficulty, setPassage, restart]);
 
-  const handleSelectDifficulty = (diff: TestDifficulty) => {
+  const handleSelectDifficulty = useCallback((diff: TestDifficulty) => {
     setSelectedDifficulty(diff);
     if (testMode === 'exam') {
       setActiveDropdown(null);
@@ -199,9 +583,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, testType, target);
     setActiveDropdown(null);
     restart();
-  };
+  }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, setPassage, restart]);
 
-  const handleSelectTestType = (type: TestType) => {
+  const handleSelectTestType = useCallback((type: TestType) => {
     if (testMode === 'exam') {
       setTestMode('standard');
     }
@@ -222,9 +606,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, type, target);
     setActiveDropdown(null);
     restart();
-  };
+  }, [testMode, setTestType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, selectedDifficulty, setPassage, restart]);
 
-  const handleSelectStandardMode = () => {
+  const handleSelectStandardMode = useCallback(() => {
     setTestMode('standard');
     setTestTypeState('time');
     setTestType('time');
@@ -238,9 +622,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'time', 60);
     setActiveDropdown(null);
     restart();
-  };
+  }, [setTestType, setDuration, selectedLanguage, selectedDifficulty, setPassage, restart]);
 
-  const handleSelectExamProfile = (profile: ExamProfile) => {
+  const handleSelectExamProfile = useCallback((profile: ExamProfile) => {
     setTestMode('exam');
     setSelectedExamProfile(profile);
     setDuration(profile.duration);
@@ -248,9 +632,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(examPassage, 'time', profile.duration);
     setActiveDropdown(null);
     restart();
-  };
+  }, [setDuration, setPassage, restart]);
 
-  const handleSelectDuration = (dur: TestDuration) => {
+  const handleSelectDuration = useCallback((dur: TestDuration) => {
     setDuration(dur);
     const newPassage = generateTestPassage({
       language: selectedLanguage,
@@ -261,9 +645,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'time', dur);
     setActiveDropdown(null);
     restart();
-  };
+  }, [setDuration, selectedLanguage, selectedDifficulty, setPassage, restart]);
 
-  const handleSelectWordTarget = (words: number) => {
+  const handleSelectWordTarget = useCallback((words: number) => {
     setSelectedWordTarget(words);
     const newPassage = generateTestPassage({
       language: selectedLanguage,
@@ -274,9 +658,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'words', words);
     setActiveDropdown(null);
     restart();
-  };
+  }, [selectedLanguage, selectedDifficulty, setPassage, restart]);
 
-  const handleSelectCharTarget = (chars: number) => {
+  const handleSelectCharTarget = useCallback((chars: number) => {
     setSelectedCharTarget(chars);
     const newPassage = generateTestPassage({
       language: selectedLanguage,
@@ -287,7 +671,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'characters', chars);
     setActiveDropdown(null);
     restart();
-  };
+  }, [selectedLanguage, selectedDifficulty, setPassage, restart]);
 
   // Focus typing area on mount if in test mode
   useEffect(() => {
@@ -383,8 +767,24 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     return match ? match.label : 'Standard';
   }, [selectedDifficulty]);
 
-  const keyboardName = selectedLanguage === 'hi' ? 'InScript' : 'QWERTY';
-  const currentTitle = ENCOURAGEMENT_TITLES[titleIndex] ?? ENCOURAGEMENT_TITLES[0];
+
+  const targetProgress = useMemo(() => {
+    if (testType === 'words') {
+      const total = state.targetCount || selectedWordTarget;
+      return {
+        current: Math.min(getCompletedWordCount(state), total),
+        total,
+      };
+    }
+    if (testType === 'characters') {
+      const total = state.targetCount || selectedCharTarget;
+      return {
+        current: Math.min(state.currentIndex, total),
+        total,
+      };
+    }
+    return null;
+  }, [testType, state, selectedWordTarget, selectedCharTarget]);
 
   // If in practice session view
   if (viewMode === 'practice' && practicePlan) {
@@ -402,306 +802,41 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
   return (
     <section className="typing-test-container" aria-label="Typing test engine workspace">
-      {/* 1. Large Encouragement Title with Typewriter Reveal */}
-      <div className="encouragement-title-container" data-testid="encouragement-title">
-        <h1
-          key={titleIndex}
-          className="encouragement-title-text encouragement-title-animated"
-        >
-          {currentTitle}
-        </h1>
-      </div>
-
-      {/* 2. Modern Rectangular Contextual Control Toolbar:
-             Order: 1. TEST TYPE | 2. TIME / TARGET | 3. LANGUAGE | 4. DIFFICULTY | 5. KEYBOARD | 6. RETEST */}
-      <div className="test-compact-toolbar" ref={toolbarRef} role="toolbar" aria-label="Test configuration">
-        {/* 1. Test Type Control (Time | Words | Characters) — FIRST */}
-        <div className="toolbar-pill-wrapper" data-testid="test-type-selector">
-          <button
-            type="button"
-            className={`toolbar-pill ${activeDropdown === 'type' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'type' ? null : 'type'))}
-            disabled={state.status === 'running'}
-            aria-haspopup="true"
-            aria-expanded={activeDropdown === 'type'}
-            title="Select test type"
-          >
-            <span className="control-label">TYPE</span>
-            <span className="control-value">{testTypeLabel}</span>
-            <span className="pill-arrow" aria-hidden="true">▾</span>
-          </button>
-
-          {activeDropdown === 'type' && (
-            <div className="toolbar-dropdown toolbar-dropdown-wide" role="menu">
-              <div className="dropdown-section-title">Standard Modes</div>
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="type-time-btn"
-                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'time' ? 'selected' : ''}`}
-                onClick={() => handleSelectTestType('time')}
-              >
-                <div>
-                  <div className="item-title">Time Test</div>
-                  <div className="item-subtitle">Timed speed challenge (60s, 3m, 5m, 10m)</div>
-                </div>
-                {testMode === 'standard' && testType === 'time' && <span className="item-check">✓</span>}
-              </button>
-
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="type-words-btn"
-                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'words' ? 'selected' : ''}`}
-                onClick={() => handleSelectTestType('words')}
-              >
-                <div>
-                  <div className="item-title">Words Test</div>
-                  <div className="item-subtitle">Fixed target word count (25, 50, 100, 250, 500)</div>
-                </div>
-                {testMode === 'standard' && testType === 'words' && <span className="item-check">✓</span>}
-              </button>
-
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="type-characters-btn"
-                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'characters' ? 'selected' : ''}`}
-                onClick={() => handleSelectTestType('characters')}
-              >
-                <div>
-                  <div className="item-title">Characters Test</div>
-                  <div className="item-subtitle">Fixed character volume (100, 250, 500, 1000, 2000)</div>
-                </div>
-                {testMode === 'standard' && testType === 'characters' && <span className="item-check">✓</span>}
-              </button>
-
-              <div className="dropdown-section-title" data-testid="mode-exam-btn">Gov. Exam Simulations</div>
-              {examProfiles.map((p) => {
-                const isSelected = testMode === 'exam' && selectedExamProfile.id === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    role="menuitem"
-                    data-testid={`exam-profile-${p.id}`}
-                    className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => handleSelectExamProfile(p)}
-                  >
-                    <div>
-                      <div className="item-title">{p.name}</div>
-                      <div className="item-subtitle">
-                        {formatDuration(p.duration)} • Target {p.targetValue} WPM
-                        {p.minimumAccuracy ? ` • ${p.minimumAccuracy}% min acc` : ''}
-                      </div>
-                    </div>
-                    {isSelected && <span className="item-check">✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* 2. Time / Target Count Control — SECOND */}
-        <div className="toolbar-pill-wrapper" data-testid="duration-selector">
-          <button
-            type="button"
-            className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
-            disabled={state.status === 'running' || testMode === 'exam'}
-            aria-haspopup="true"
-            aria-expanded={activeDropdown === 'target'}
-            title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
-          >
-            <span className="control-label">{targetLabel.prefix}</span>
-            <span className="control-value">{targetLabel.value}</span>
-            {testMode !== 'exam' && <span className="pill-arrow" aria-hidden="true">▾</span>}
-          </button>
-
-          {activeDropdown === 'target' && testMode !== 'exam' && (
-            <div className="toolbar-dropdown" role="menu">
-              {testType === 'time' &&
-                DURATIONS.map((d) => (
-                  <button
-                    key={d.value}
-                    type="button"
-                    role="menuitem"
-                    className={`toolbar-dropdown-item ${state.duration === d.value ? 'selected' : ''}`}
-                    onClick={() => handleSelectDuration(d.value)}
-                  >
-                    <span>{d.label}</span>
-                    {state.duration === d.value && <span className="item-check">✓</span>}
-                  </button>
-                ))}
-
-              {testType === 'words' &&
-                WORD_TARGETS.map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    role="menuitem"
-                    className={`toolbar-dropdown-item ${selectedWordTarget === count ? 'selected' : ''}`}
-                    onClick={() => handleSelectWordTarget(count)}
-                  >
-                    <span>{count} words</span>
-                    {selectedWordTarget === count && <span className="item-check">✓</span>}
-                  </button>
-                ))}
-
-              {testType === 'characters' &&
-                CHAR_TARGETS.map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    role="menuitem"
-                    className={`toolbar-dropdown-item ${selectedCharTarget === count ? 'selected' : ''}`}
-                    onClick={() => handleSelectCharTarget(count)}
-                  >
-                    <span>{count} chars</span>
-                    {selectedCharTarget === count && <span className="item-check">✓</span>}
-                  </button>
-                ))}
-            </div>
-          )}
-        </div>
-
-        {/* 3. Language Control */}
-        <div className="toolbar-pill-wrapper" data-testid="language-selector">
-          <button
-            type="button"
-            className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'language' ? null : 'language'))}
-            disabled={state.status === 'running'}
-            aria-haspopup="true"
-            aria-expanded={activeDropdown === 'language'}
-            title="Select language"
-          >
-            <span className="control-label">LANG</span>
-            <span className="control-value">{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
-            <span className="pill-arrow" aria-hidden="true">▾</span>
-          </button>
-
-          {activeDropdown === 'language' && (
-            <div className="toolbar-dropdown" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="lang-en-btn"
-                className={`toolbar-dropdown-item ${selectedLanguage === 'en' ? 'selected' : ''}`}
-                onClick={() => handleSelectLanguage('en')}
-              >
-                <span>English</span>
-                {selectedLanguage === 'en' && <span className="item-check">✓</span>}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="lang-hi-btn"
-                className={`toolbar-dropdown-item ${selectedLanguage === 'hi' ? 'selected' : ''}`}
-                onClick={() => handleSelectLanguage('hi')}
-              >
-                <span>हिंदी</span>
-                {selectedLanguage === 'hi' && <span className="item-check">✓</span>}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 4. Difficulty Control */}
-        <div className="toolbar-pill-wrapper" data-testid="difficulty-selector">
-          <button
-            type="button"
-            className={`toolbar-pill ${activeDropdown === 'difficulty' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'difficulty' ? null : 'difficulty'))}
-            disabled={state.status === 'running'}
-            aria-haspopup="true"
-            aria-expanded={activeDropdown === 'difficulty'}
-            title="Select difficulty"
-          >
-            <span className="control-label">DIFFICULTY</span>
-            <span className="control-value">{difficultyLabel}</span>
-            <span className="pill-arrow" aria-hidden="true">▾</span>
-          </button>
-
-          {activeDropdown === 'difficulty' && (
-            <div className="toolbar-dropdown" role="menu">
-              {DIFFICULTIES.map((d) => (
-                <button
-                  key={d.value}
-                  type="button"
-                  role="menuitem"
-                  className={`toolbar-dropdown-item ${selectedDifficulty === d.value ? 'selected' : ''}`}
-                  onClick={() => handleSelectDifficulty(d.value)}
-                >
-                  <span>{d.label}</span>
-                  {selectedDifficulty === d.value && <span className="item-check">✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 5. Virtual Keyboard Control */}
-        <button
-          type="button"
-          className={`toolbar-pill ${showKeyboard ? 'active' : ''}`}
-          onClick={handleToggleKeyboard}
-          data-testid="toggle-keyboard-btn"
-          aria-pressed={showKeyboard}
-          title={showKeyboard ? 'Hide virtual keyboard' : 'Show virtual keyboard'}
-        >
-          <span className="control-label">KEYBOARD</span>
-          <span className="control-value">⌨️ {keyboardName}</span>
-        </button>
-
-        {/* 6. Retest Button */}
-        <button
-          type="button"
-          onClick={handleRetest}
-          data-testid="retest-btn"
-          className="toolbar-pill toolbar-pill-reset"
-          title="Retest (Esc)"
-        >
-          <span className="control-value">↺ Retest</span>
-        </button>
-
-        {/* Hidden test-mode and complete-test triggers for deterministic automated tests */}
-        <button
-          type="button"
-          data-testid="mode-standard-btn"
-          onClick={handleSelectStandardMode}
-          style={{ display: 'none' }}
-          aria-hidden="true"
-          tabIndex={-1}
-        >
-          Standard Test
-        </button>
-        <button
-          type="button"
-          data-testid="complete-test-btn"
-          onClick={completeTest}
-          style={{ display: 'none' }}
-          aria-hidden="true"
-          tabIndex={-1}
-        >
-          Complete Test
-        </button>
-      </div>
+      {/* Contextual Control Toolbar */}
+      <TestToolbar
+        toolbarRef={toolbarRef}
+        activeDropdown={activeDropdown}
+        setActiveDropdown={setActiveDropdown}
+        isRunning={state.status === 'running'}
+        testMode={testMode}
+        testType={testType}
+        testTypeLabel={testTypeLabel}
+        targetLabel={targetLabel}
+        selectedLanguage={selectedLanguage}
+        difficultyLabel={difficultyLabel}
+        examProfiles={examProfiles}
+        selectedExamProfile={selectedExamProfile}
+        selectedWordTarget={selectedWordTarget}
+        selectedCharTarget={selectedCharTarget}
+        selectedDifficulty={selectedDifficulty}
+        duration={state.duration}
+        showKeyboard={showKeyboard}
+        onToggleKeyboard={handleToggleKeyboard}
+        onSelectTestType={handleSelectTestType}
+        onSelectExamProfile={handleSelectExamProfile}
+        onSelectDuration={handleSelectDuration}
+        onSelectWordTarget={handleSelectWordTarget}
+        onSelectCharTarget={handleSelectCharTarget}
+        onSelectLanguage={handleSelectLanguage}
+        onSelectDifficulty={handleSelectDifficulty}
+        onRetest={handleRetest}
+        onSelectStandardMode={handleSelectStandardMode}
+        onCompleteTest={completeTest}
+      />
 
       {/* Exam Mode Active Details (when in exam mode) */}
       {testMode === 'exam' && (
-        <div className="exam-mode-active-bar" data-testid="exam-active-bar">
-          <span className="exam-active-title">
-            Preset: <strong>{selectedExamProfile.name}</strong>
-          </span>
-          <span className="exam-active-target">
-            Target: <strong>{selectedExamProfile.targetValue} WPM</strong>
-          </span>
-          <span className="exam-active-duration">
-            Duration: <strong>{formatDuration(selectedExamProfile.duration)}</strong>
-          </span>
-        </div>
+        <ExamActiveBar profile={selectedExamProfile} />
       )}
 
       {/* Main Interactive Stage: Active Passage or Completed Results */}
@@ -722,7 +857,21 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           )}
 
           {/* Live Metrics: GWPM | Net WPM | Accuracy | Time | Errors */}
-          <MetricsBar metrics={metrics} testType={testType} initialDuration={state.duration} />
+          <MetricsBar
+            metrics={metrics}
+            testType={testType}
+            initialDuration={state.duration}
+            targetProgress={targetProgress}
+          />
+
+          {/* Minimalist Live Typing Progress Bar */}
+          <TypingProgressBar
+            testType={testType}
+            status={state.status}
+            duration={state.duration}
+            elapsedSeconds={metrics.elapsedSeconds}
+            targetProgress={targetProgress}
+          />
 
           {/* Primary 5-Line Rolling Typing Passage */}
           <PassageDisplay
