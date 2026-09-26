@@ -93,6 +93,7 @@ export function useTypingEngine({
         const updatedMetrics = calculateCurrentMetrics(updatedState, now);
 
         if (updatedState.status !== currentState.status) {
+          stateRef.current = updatedState;
           setState(updatedState);
           setMetrics(updatedMetrics);
         } else {
@@ -132,11 +133,11 @@ export function useTypingEngine({
     if (inputRef.current) {
       inputRef.current.value = '';
     }
-    setState((prev) => {
-      const reset = createInitialState(prev.passage, prev.duration, prev.testType, prev.targetCount);
-      setMetrics(calculateCurrentMetrics(reset));
-      return reset;
-    });
+    const current = stateRef.current;
+    const reset = createInitialState(current.passage, current.duration, current.testType, current.targetCount);
+    stateRef.current = reset;
+    setState(reset);
+    setMetrics(calculateCurrentMetrics(reset));
     // Restore focus on restart
     setTimeout(() => {
       focusTypingArea();
@@ -144,18 +145,18 @@ export function useTypingEngine({
   }, [focusTypingArea]);
 
   const completeTest = useCallback(() => {
-    setState((prev) => {
-      if (prev.status !== 'running' || prev.startTime === null) return prev;
-      const now = performance.now();
-      const endTime = Math.max(now, prev.startTime + 100);
-      const updated: TypingState = {
-        ...prev,
-        status: 'completed',
-        endTime,
-      };
-      setMetrics(calculateCurrentMetrics(updated, endTime));
-      return updated;
-    });
+    const current = stateRef.current;
+    if (current.status !== 'running' || current.startTime === null) return;
+    const now = performance.now();
+    const endTime = Math.max(now, current.startTime + 100);
+    const updated: TypingState = {
+      ...current,
+      status: 'completed',
+      endTime,
+    };
+    stateRef.current = updated;
+    setState(updated);
+    setMetrics(calculateCurrentMetrics(updated, endTime));
   }, []);
 
   // Deterministic test completion listener for automated workflows & testing
@@ -170,38 +171,38 @@ export function useTypingEngine({
   }, [completeTest]);
 
   const setDuration = useCallback((duration: TestDuration) => {
-    setState((prev) => {
-      const updated = createInitialState(prev.passage, duration, prev.testType, prev.targetCount);
-      setMetrics(calculateCurrentMetrics(updated));
-      return updated;
-    });
+    const current = stateRef.current;
+    const updated = createInitialState(current.passage, duration, current.testType, current.targetCount);
+    stateRef.current = updated;
+    setState(updated);
+    setMetrics(calculateCurrentMetrics(updated));
     setTimeout(() => {
       focusTypingArea();
     }, 0);
   }, [focusTypingArea]);
 
   const setPassage = useCallback((passage: Passage, testType?: TestType, targetCount?: number) => {
-    setState((prev) => {
-      const updated = createInitialState(
-        passage,
-        prev.duration,
-        testType ?? prev.testType ?? 'time',
-        targetCount ?? prev.targetCount
-      );
-      setMetrics(calculateCurrentMetrics(updated));
-      return updated;
-    });
+    const current = stateRef.current;
+    const updated = createInitialState(
+      passage,
+      current.duration,
+      testType ?? current.testType ?? 'time',
+      targetCount ?? current.targetCount
+    );
+    stateRef.current = updated;
+    setState(updated);
+    setMetrics(calculateCurrentMetrics(updated));
     setTimeout(() => {
       focusTypingArea();
     }, 0);
   }, [focusTypingArea]);
 
   const setTestType = useCallback((testType: TestType, targetCount?: number) => {
-    setState((prev) => {
-      const updated = createInitialState(prev.passage, prev.duration, testType, targetCount);
-      setMetrics(calculateCurrentMetrics(updated));
-      return updated;
-    });
+    const current = stateRef.current;
+    const updated = createInitialState(current.passage, current.duration, testType, targetCount);
+    stateRef.current = updated;
+    setState(updated);
+    setMetrics(calculateCurrentMetrics(updated));
     setTimeout(() => {
       focusTypingArea();
     }, 0);
@@ -222,15 +223,16 @@ export function useTypingEngine({
       if (e.key === 'Backspace') {
         e.preventDefault();
         const now = performance.now();
+        const current = stateRef.current;
+        const next = processKeystroke(current, 'Backspace', now);
+        stateRef.current = next;
+
         setRecentKey({ code: 'Backspace', status: 'correct' });
         if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
         recentKeyTimerRef.current = setTimeout(() => setRecentKey(null), 150);
 
-        setState((prev) => {
-          const next = processKeystroke(prev, 'Backspace', now);
-          setMetrics(calculateCurrentMetrics(next, now));
-          return next;
-        });
+        setState(next);
+        setMetrics(calculateCurrentMetrics(next, now));
         return;
       }
 
@@ -245,16 +247,19 @@ export function useTypingEngine({
         const now = performance.now();
         const code = e.nativeEvent.code || e.code || e.key;
 
-        setState((prev) => {
-          const next = processKeystroke(prev, e.key, now);
-          const status = next.correctStrokes > prev.correctStrokes ? 'correct' : 'incorrect';
-          setRecentKey({ code, status });
-          if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
-          recentKeyTimerRef.current = setTimeout(() => setRecentKey(null), 150);
+        const current = stateRef.current;
+        const next = processKeystroke(current, e.key, now);
+        stateRef.current = next;
 
-          setMetrics(calculateCurrentMetrics(next, now));
-          return next;
-        });
+        const status: 'correct' | 'incorrect' =
+          next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+
+        setRecentKey({ code, status });
+        if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
+        recentKeyTimerRef.current = setTimeout(() => setRecentKey(null), 150);
+
+        setState(next);
+        setMetrics(calculateCurrentMetrics(next, now));
       }
     },
     []
@@ -272,11 +277,11 @@ export function useTypingEngine({
 
       if (committedText && stateRef.current.status !== 'completed') {
         const now = performance.now();
-        setState((prev) => {
-          const next = processInputText(prev, committedText, now);
-          setMetrics(calculateCurrentMetrics(next, now));
-          return next;
-        });
+        const current = stateRef.current;
+        const next = processInputText(current, committedText, now);
+        stateRef.current = next;
+        setState(next);
+        setMetrics(calculateCurrentMetrics(next, now));
       }
 
       if (inputRef.current) {
@@ -302,11 +307,11 @@ export function useTypingEngine({
       if (inputChar && !isControlKey(inputChar)) {
         e.preventDefault();
         const now = performance.now();
-        setState((prev) => {
-          const next = processInputText(prev, inputChar, now);
-          setMetrics(calculateCurrentMetrics(next, now));
-          return next;
-        });
+        const current = stateRef.current;
+        const next = processInputText(current, inputChar, now);
+        stateRef.current = next;
+        setState(next);
+        setMetrics(calculateCurrentMetrics(next, now));
         if (inputRef.current) {
           inputRef.current.value = '';
         }
@@ -328,11 +333,11 @@ export function useTypingEngine({
     const val = (e.currentTarget as HTMLInputElement).value;
     if (val && !isControlKey(val)) {
       const now = performance.now();
-      setState((prev) => {
-        const next = processInputText(prev, val, now);
-        setMetrics(calculateCurrentMetrics(next, now));
-        return next;
-      });
+      const current = stateRef.current;
+      const next = processInputText(current, val, now);
+      stateRef.current = next;
+      setState(next);
+      setMetrics(calculateCurrentMetrics(next, now));
       (e.currentTarget as HTMLInputElement).value = '';
     }
   }, []);

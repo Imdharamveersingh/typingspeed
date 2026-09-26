@@ -149,4 +149,50 @@ describe('Keyboard Integration with Typing Engine', () => {
     expect(highlight.focusKeyCodes.length).toBeGreaterThan(0);
     expect(highlight.mistakeFrequencies.size).toBeGreaterThan(0);
   });
+
+  it('accurately resolves recentKey status for correct, incorrect, and rapid keystrokes without side effects', () => {
+    let current = createInitialState(DEFAULT_PASSAGE, 60);
+    const text = DEFAULT_PASSAGE.text;
+
+    // 1. Correct key press
+    const key0 = text[0];
+    const next1 = processKeystroke(current, key0, 1000);
+    const status1 = next1.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+    expect(status1).toBe('correct');
+    expect(next1.correctStrokes).toBe(1);
+    expect(next1.incorrectStrokes).toBe(0);
+    current = next1;
+
+    // 2. Incorrect key press
+    const wrongKey = text[1] === 'z' ? 'q' : 'z';
+    const next2 = processKeystroke(current, wrongKey, 1100);
+    const status2 = next2.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+    expect(status2).toBe('incorrect');
+    expect(next2.correctStrokes).toBe(1);
+    expect(next2.incorrectStrokes).toBe(1);
+    current = next2;
+
+    // 3. Backspace
+    const next3 = processKeystroke(current, 'Backspace', 1200);
+    expect(next3.currentIndex).toBe(1);
+    current = next3;
+
+    // 4. Correct key again after backspace
+    const next4 = processKeystroke(current, text[1], 1300);
+    const status4 = next4.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+    expect(status4).toBe('correct');
+    expect(next4.correctStrokes).toBe(2);
+    current = next4;
+
+    // 5. Rapid typing simulation (multiple keys in succession)
+    for (let i = 2; i < 10; i++) {
+      const char = text[i];
+      const next = processKeystroke(current, char, 1300 + i * 50);
+      const status = next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+      expect(status).toBe('correct');
+      current = next;
+    }
+    expect(current.currentIndex).toBe(10);
+    expect(current.correctStrokes).toBe(10);
+  });
 });
