@@ -309,20 +309,25 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     };
   }, [viewMode, activeDropdown, handleRetest]);
 
-  // Generate deterministic practice plan from latest test state
-  const analytics = useMemo(() => analyzeTypingResult(state), [state]);
-  const practicePlan = useMemo(
-    () => generatePracticePlan(state, analytics, practiceType),
-    [state, analytics, practiceType]
-  );
-
+  // Generate deterministic practice plan only when test completes or in practice view to eliminate keystroke latency
   const isCompleted = state.status === 'completed';
+  const shouldComputeAnalytics = isCompleted || viewMode === 'practice';
+
+  const analytics = useMemo(() => {
+    if (!shouldComputeAnalytics) return null;
+    return analyzeTypingResult(state);
+  }, [state, shouldComputeAnalytics]);
+
+  const practicePlan = useMemo(() => {
+    if (!shouldComputeAnalytics || !analytics) return null;
+    return generatePracticePlan(state, analytics, practiceType);
+  }, [state, analytics, practiceType, shouldComputeAnalytics]);
 
   // Automatically persist completed test attempt to localStorage (only once per completion)
   const lastSavedTestRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (viewMode === 'test' && state.status === 'completed' && state.endTime !== null) {
+    if (viewMode === 'test' && state.status === 'completed' && state.endTime !== null && analytics) {
       // Unique fingerprint preventing duplicate saves during re-renders
       const completionFingerprint = `${state.startTime}_${state.endTime}_${state.duration}_${state.totalKeystrokes}_${testMode}_${state.passage.language}_${testType}`;
       if (lastSavedTestRef.current !== completionFingerprint) {
@@ -382,7 +387,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const currentTitle = ENCOURAGEMENT_TITLES[titleIndex] ?? ENCOURAGEMENT_TITLES[0];
 
   // If in practice session view
-  if (viewMode === 'practice') {
+  if (viewMode === 'practice' && practicePlan) {
     return (
       <section className="typing-test-container" aria-label="Practice session workspace">
         <PracticeSession
@@ -408,72 +413,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       </div>
 
       {/* 2. Modern Rectangular Contextual Control Toolbar:
-             Order: 1. Time/Target | 2. Test Type | 3. Language | 4. Difficulty | 5. Keyboard | 6. Retest */}
+             Order: 1. TEST TYPE | 2. TIME / TARGET | 3. LANGUAGE | 4. DIFFICULTY | 5. KEYBOARD | 6. RETEST */}
       <div className="test-compact-toolbar" ref={toolbarRef} role="toolbar" aria-label="Test configuration">
-        {/* 1. Time / Target Count Control */}
-        <div className="toolbar-pill-wrapper" data-testid="duration-selector">
-          <button
-            type="button"
-            className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
-            disabled={state.status === 'running' || testMode === 'exam'}
-            aria-haspopup="true"
-            aria-expanded={activeDropdown === 'target'}
-            title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
-          >
-            <span className="control-label">{targetLabel.prefix}</span>
-            <span className="control-value">{targetLabel.value}</span>
-            {testMode !== 'exam' && <span className="pill-arrow" aria-hidden="true">▾</span>}
-          </button>
-
-          {activeDropdown === 'target' && testMode !== 'exam' && (
-            <div className="toolbar-dropdown" role="menu">
-              {testType === 'time' &&
-                DURATIONS.map((d) => (
-                  <button
-                    key={d.value}
-                    type="button"
-                    role="menuitem"
-                    className={`toolbar-dropdown-item ${state.duration === d.value ? 'selected' : ''}`}
-                    onClick={() => handleSelectDuration(d.value)}
-                  >
-                    <span>{d.label}</span>
-                    {state.duration === d.value && <span className="item-check">✓</span>}
-                  </button>
-                ))}
-
-              {testType === 'words' &&
-                WORD_TARGETS.map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    role="menuitem"
-                    className={`toolbar-dropdown-item ${selectedWordTarget === count ? 'selected' : ''}`}
-                    onClick={() => handleSelectWordTarget(count)}
-                  >
-                    <span>{count} words</span>
-                    {selectedWordTarget === count && <span className="item-check">✓</span>}
-                  </button>
-                ))}
-
-              {testType === 'characters' &&
-                CHAR_TARGETS.map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    role="menuitem"
-                    className={`toolbar-dropdown-item ${selectedCharTarget === count ? 'selected' : ''}`}
-                    onClick={() => handleSelectCharTarget(count)}
-                  >
-                    <span>{count} chars</span>
-                    {selectedCharTarget === count && <span className="item-check">✓</span>}
-                  </button>
-                ))}
-            </div>
-          )}
-        </div>
-
-        {/* 2. Test Type Control (Time | Words | Characters) */}
+        {/* 1. Test Type Control (Time | Words | Characters) — FIRST */}
         <div className="toolbar-pill-wrapper" data-testid="test-type-selector">
           <button
             type="button"
@@ -557,6 +499,69 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                   </button>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        {/* 2. Time / Target Count Control — SECOND */}
+        <div className="toolbar-pill-wrapper" data-testid="duration-selector">
+          <button
+            type="button"
+            className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
+            disabled={state.status === 'running' || testMode === 'exam'}
+            aria-haspopup="true"
+            aria-expanded={activeDropdown === 'target'}
+            title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
+          >
+            <span className="control-label">{targetLabel.prefix}</span>
+            <span className="control-value">{targetLabel.value}</span>
+            {testMode !== 'exam' && <span className="pill-arrow" aria-hidden="true">▾</span>}
+          </button>
+
+          {activeDropdown === 'target' && testMode !== 'exam' && (
+            <div className="toolbar-dropdown" role="menu">
+              {testType === 'time' &&
+                DURATIONS.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${state.duration === d.value ? 'selected' : ''}`}
+                    onClick={() => handleSelectDuration(d.value)}
+                  >
+                    <span>{d.label}</span>
+                    {state.duration === d.value && <span className="item-check">✓</span>}
+                  </button>
+                ))}
+
+              {testType === 'words' &&
+                WORD_TARGETS.map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${selectedWordTarget === count ? 'selected' : ''}`}
+                    onClick={() => handleSelectWordTarget(count)}
+                  >
+                    <span>{count} words</span>
+                    {selectedWordTarget === count && <span className="item-check">✓</span>}
+                  </button>
+                ))}
+
+              {testType === 'characters' &&
+                CHAR_TARGETS.map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${selectedCharTarget === count ? 'selected' : ''}`}
+                    onClick={() => handleSelectCharTarget(count)}
+                  >
+                    <span>{count} chars</span>
+                    {selectedCharTarget === count && <span className="item-check">✓</span>}
+                  </button>
+                ))}
             </div>
           )}
         </div>
@@ -762,7 +767,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 typingState={state}
                 language={state.passage.language}
                 recentKey={recentKey}
-                mistakes={analytics.mostMistypedCharacters}
+                mistakes={analytics?.mostMistypedCharacters}
                 visible={showKeyboard}
                 onToggleVisible={handleToggleKeyboard}
               />

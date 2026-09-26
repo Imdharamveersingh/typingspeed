@@ -29,7 +29,7 @@ interface PassageDisplayProps {
   onBlur: () => void;
 }
 
-export const PassageDisplay: React.FC<PassageDisplayProps> = ({
+export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
   characters,
   extraCharacters,
   currentIndex,
@@ -92,10 +92,10 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
     return result;
   }, [characters]);
 
-  // Rolling 5-line calculation: shifts completed lines upward
+  // Rolling 5-line calculation: shifts completed lines upward without forced layout reflows
   useEffect(() => {
     if (currentIndex === 0) {
-      setLineOffsetPx(0);
+      setLineOffsetPx((prev) => (prev !== 0 ? 0 : prev));
       return;
     }
 
@@ -103,12 +103,11 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
       const caretEl = caretRef.current;
       const containerEl = textContainerRef.current;
       const caretTop = caretEl.offsetTop - containerEl.offsetTop;
-      const computedLineHeight =
-        parseFloat(window.getComputedStyle(containerEl).lineHeight) || (isHindi ? 46 : 38);
+      const baseLineHeight = isHindi ? 46 : 38;
 
-      const lineIndex = Math.max(0, Math.floor((caretTop + 4) / computedLineHeight));
-      const targetOffset = lineIndex * computedLineHeight;
-      setLineOffsetPx(targetOffset);
+      const lineIndex = Math.max(0, Math.floor((caretTop + 4) / baseLineHeight));
+      const targetOffset = lineIndex * baseLineHeight;
+      setLineOffsetPx((prev) => (prev !== targetOffset ? targetOffset : prev));
     }
   }, [currentIndex, isHindi]);
 
@@ -220,6 +219,8 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = ({
       </div>
     </div>
   );
-};
+});
+
+PassageDisplay.displayName = 'PassageDisplay';
 
 export default PassageDisplay;

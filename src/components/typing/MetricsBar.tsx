@@ -8,7 +8,7 @@ interface MetricsBarProps {
   initialDuration?: number;
 }
 
-export const MetricsBar: React.FC<MetricsBarProps> = ({
+export const MetricsBar: React.FC<MetricsBarProps> = React.memo(({
   metrics,
   testType = 'time',
 }) => {
@@ -56,6 +56,8 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
       </div>
     </div>
   );
-};
+});
+
+MetricsBar.displayName = 'MetricsBar';
 
 export default MetricsBar;
