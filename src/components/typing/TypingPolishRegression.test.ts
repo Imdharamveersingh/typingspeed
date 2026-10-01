@@ -109,9 +109,17 @@ describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () 
       expect(cssContent).toMatch(/\.target-progress-value\s+\.target-den\s*\{[^}]*text-align:\s*center;/s);
     });
 
-    it('Typing progress bar track height is 4px pill shape', () => {
-      expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*height:\s*4px;/s);
+    it('Typing progress bar track height is 3px pill shape and centered with max-width', () => {
+      expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*height:\s*3px;/s);
       expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*border-radius:\s*9999px;/s);
+      expect(cssContent).toMatch(/\.typing-progress-bar-wrapper\s*\{[^}]*max-width:\s*720px;/s);
+    });
+
+    it('Toolbar option buttons have no border or shadow and subtle hover background', () => {
+      expect(cssContent).toMatch(/\.toolbar-pill\s*\{[^}]*background-color:\s*transparent;/s);
+      expect(cssContent).toMatch(/\.toolbar-pill\s*\{[^}]*border:\s*1px\s+solid\s+transparent;/s);
+      expect(cssContent).toMatch(/\.toolbar-pill\s*\{[^}]*box-shadow:\s*none;/s);
+      expect(cssContent).toMatch(/\.toolbar-pill:hover:not\(:disabled\)\s*\{[^}]*border-color:\s*transparent;/s);
     });
   });
 
