@@ -129,8 +129,9 @@ export function processKeystroke(
   key: string,
   timestamp: number
 ): TypingState {
-  // If test is completed, reject any further typing
-  if (initialState.status === 'completed') {
+  // If test is completed, reject any further typing except Backspace in target modes
+  const isTargetMode = initialState.testType === 'words' || initialState.testType === 'characters';
+  if (initialState.status === 'completed' && !(key === 'Backspace' && isTargetMode)) {
     return initialState;
   }
 
@@ -189,8 +190,14 @@ export function processKeystroke(
       pendingComposition: undefined,
     };
 
+    const isTargetMode = state.testType === 'words' || state.testType === 'characters';
+    const nextStatus = state.status === 'completed' && isTargetMode ? 'running' : state.status;
+    const nextEndTime = state.status === 'completed' && isTargetMode ? null : state.endTime;
+
     return {
       ...state,
+      status: nextStatus,
+      endTime: nextEndTime,
       characters: updatedCharacters,
       currentIndex: prevIndex,
     };

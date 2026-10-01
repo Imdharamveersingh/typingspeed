@@ -627,14 +627,18 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const handleSelectExamProfile = useCallback((profile: ExamProfile) => {
     setTestMode('exam');
     setSelectedExamProfile(profile);
+    setTestTypeState('time');
+    setTestType('time', profile.duration);
     setDuration(profile.duration);
     const examPassage = PASSAGES.find((p) => p.id === profile.passageId) || DEFAULT_PASSAGE;
     setPassage(examPassage, 'time', profile.duration);
     setActiveDropdown(null);
     restart();
-  }, [setDuration, setPassage, restart]);
+  }, [setTestType, setDuration, setPassage, restart]);
 
   const handleSelectDuration = useCallback((dur: TestDuration) => {
+    setTestTypeState('time');
+    setTestType('time', dur);
     setDuration(dur);
     const newPassage = generateTestPassage({
       language: selectedLanguage,
@@ -645,10 +649,12 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'time', dur);
     setActiveDropdown(null);
     restart();
-  }, [setDuration, selectedLanguage, selectedDifficulty, setPassage, restart]);
+  }, [setTestType, setDuration, selectedLanguage, selectedDifficulty, setPassage, restart]);
 
   const handleSelectWordTarget = useCallback((words: number) => {
     setSelectedWordTarget(words);
+    setTestTypeState('words');
+    setTestType('words', words);
     const newPassage = generateTestPassage({
       language: selectedLanguage,
       difficulty: selectedDifficulty,
@@ -658,10 +664,12 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'words', words);
     setActiveDropdown(null);
     restart();
-  }, [selectedLanguage, selectedDifficulty, setPassage, restart]);
+  }, [selectedLanguage, selectedDifficulty, setTestType, setPassage, restart]);
 
   const handleSelectCharTarget = useCallback((chars: number) => {
     setSelectedCharTarget(chars);
+    setTestTypeState('characters');
+    setTestType('characters', chars);
     const newPassage = generateTestPassage({
       language: selectedLanguage,
       difficulty: selectedDifficulty,
@@ -671,7 +679,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'characters', chars);
     setActiveDropdown(null);
     restart();
-  }, [selectedLanguage, selectedDifficulty, setPassage, restart]);
+  }, [selectedLanguage, selectedDifficulty, setTestType, setPassage, restart]);
 
   // Focus typing area on mount if in test mode
   useEffect(() => {
@@ -740,27 +748,29 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     selectedExamProfile.id,
   ]);
 
-  // Labels for rectangular controls
+  const effectiveTestType: TestType = state.testType || testType;
+
+  // Synchronized target count and label for secondary toolbar pill
   const targetLabel = useMemo(() => {
     if (testMode === 'exam') {
       return { prefix: 'TIME', value: formatDuration(selectedExamProfile.duration) };
     }
-    if (testType === 'words') {
+    if (effectiveTestType === 'words') {
       return { prefix: 'WORDS', value: `${selectedWordTarget}` };
     }
-    if (testType === 'characters') {
+    if (effectiveTestType === 'characters') {
       return { prefix: 'CHARS', value: `${selectedCharTarget}` };
     }
     const match = DURATIONS.find((d) => d.value === state.duration);
     return { prefix: 'TIME', value: match ? match.label : `${state.duration}s` };
-  }, [testMode, testType, selectedWordTarget, selectedCharTarget, selectedExamProfile.duration, state.duration]);
+  }, [testMode, effectiveTestType, selectedWordTarget, selectedCharTarget, selectedExamProfile.duration, state.duration]);
 
   const testTypeLabel = useMemo(() => {
     if (testMode === 'exam') return `Exam (${selectedExamProfile.shortName})`;
-    if (testType === 'words') return 'Words';
-    if (testType === 'characters') return 'Characters';
+    if (effectiveTestType === 'words') return 'Words';
+    if (effectiveTestType === 'characters') return 'Characters';
     return 'Time';
-  }, [testMode, testType, selectedExamProfile.shortName]);
+  }, [testMode, effectiveTestType, selectedExamProfile.shortName]);
 
   const difficultyLabel = useMemo(() => {
     const match = DIFFICULTIES.find((d) => d.value === selectedDifficulty);
@@ -769,14 +779,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
 
   const targetProgress = useMemo(() => {
-    if (testType === 'words') {
+    if (effectiveTestType === 'words') {
       const total = state.targetCount || selectedWordTarget;
       return {
         current: Math.min(getCompletedWordCount(state), total),
         total,
       };
     }
-    if (testType === 'characters') {
+    if (effectiveTestType === 'characters') {
       const total = state.targetCount || selectedCharTarget;
       return {
         current: Math.min(state.currentIndex, total),
@@ -784,7 +794,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       };
     }
     return null;
-  }, [testType, state, selectedWordTarget, selectedCharTarget]);
+  }, [effectiveTestType, state, selectedWordTarget, selectedCharTarget]);
 
   // If in practice session view
   if (viewMode === 'practice' && practicePlan) {
@@ -809,7 +819,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         setActiveDropdown={setActiveDropdown}
         isRunning={state.status === 'running'}
         testMode={testMode}
-        testType={testType}
+        testType={effectiveTestType}
         testTypeLabel={testTypeLabel}
         targetLabel={targetLabel}
         selectedLanguage={selectedLanguage}
@@ -859,14 +869,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           {/* Live Metrics: GWPM | Net WPM | Accuracy | Time | Errors */}
           <MetricsBar
             metrics={metrics}
-            testType={testType}
+            testType={effectiveTestType}
             initialDuration={state.duration}
             targetProgress={targetProgress}
           />
 
           {/* Minimalist Live Typing Progress Bar */}
           <TypingProgressBar
-            testType={testType}
+            testType={effectiveTestType}
             status={state.status}
             duration={state.duration}
             elapsedSeconds={metrics.elapsedSeconds}

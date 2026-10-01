@@ -275,22 +275,22 @@ a:hover {
   }
 }
 
-/* Header */
+/* Header — seamless continuous background with page */
 .app-header {
   height: var(--header-height);
-  border-bottom: 1px solid var(--border-subtle);
-  background-color: #FFFFFF;
+  border-bottom: none;
+  background-color: var(--bg-primary);
   display: flex;
   align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
   width: 100%;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition: background-color var(--transition-fast);
 }
 
 [data-theme="dark"] .app-header {
-  background-color: var(--bg-surface);
+  background-color: var(--bg-primary);
 }
 
 .header-inner {
@@ -1151,6 +1151,47 @@ a:hover {
   margin-top: 2px;
 }
 
+/* Dedicated Target Progress Card — compact stacked numeric presentation */
+.metric-target-progress {
+  min-width: 64px;
+}
+
+.target-progress-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.target-progress-value .target-num {
+  font-size: 1.1rem;
+  line-height: 1;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.target-progress-value .target-slash {
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--text-muted);
+  user-select: none;
+  margin: 1px 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.target-progress-value .target-den {
+  font-size: 0.875rem;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
 @media (max-width: 640px) {
   .metrics-bar {
     max-width: 100%;
@@ -1165,6 +1206,18 @@ a:hover {
   }
   .metric-label {
     font-size: 0.625rem;
+  }
+  .metric-target-progress {
+    min-width: 50px;
+  }
+  .target-progress-value .target-num {
+    font-size: 0.95rem;
+  }
+  .target-progress-value .target-slash {
+    font-size: 0.6875rem;
+  }
+  .target-progress-value .target-den {
+    font-size: 0.8rem;
   }
 }
 

@@ -60,8 +60,10 @@ export const MetricsBar: React.FC<MetricsBarProps> = React.memo(({
       {/* 6. Target Progress — strictly shown only in Words or Characters mode */}
       {targetProgress && (
         <div className="metric-card metric-target-progress" data-testid="target-progress">
-          <div className="metric-value highlight">
-            {targetProgress.current} / {targetProgress.total}
+          <div className="metric-value highlight target-progress-value">
+            <span className="target-num" data-testid="target-progress-current">{targetProgress.current}</span>
+            <span className="target-slash">/</span>
+            <span className="target-den" data-testid="target-progress-total">{targetProgress.total}</span>
           </div>
           <div className="metric-label">
             {testType === 'words' ? 'Words' : 'Characters'}

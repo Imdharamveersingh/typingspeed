@@ -279,7 +279,9 @@ export function useTypingEngine({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (stateRef.current.status === 'completed') {
+      const isTargetMode =
+        stateRef.current.testType === 'words' || stateRef.current.testType === 'characters';
+      if (stateRef.current.status === 'completed' && !(e.key === 'Backspace' && isTargetMode)) {
         return;
       }
 
@@ -292,7 +294,9 @@ export function useTypingEngine({
       if (e.key === 'Backspace') {
         e.preventDefault();
         const now = performance.now();
-        registerActiveKeystroke(now);
+        if (stateRef.current.status === 'running' || (stateRef.current.status === 'completed' && isTargetMode)) {
+          registerActiveKeystroke(now);
+        }
         const current = stateRef.current;
         const next = processKeystroke(current, 'Backspace', now);
 
