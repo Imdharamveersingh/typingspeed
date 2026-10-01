@@ -109,10 +109,10 @@ describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () 
       expect(cssContent).toMatch(/\.target-progress-value\s+\.target-den\s*\{[^}]*text-align:\s*center;/s);
     });
 
-    it('Typing progress bar track height is 3px pill shape and centered with max-width', () => {
-      expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*height:\s*3px;/s);
+    it('Typing progress bar track height is 5px pill shape and centered with 600-640px max-width', () => {
+      expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*height:\s*5px;/s);
       expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*border-radius:\s*9999px;/s);
-      expect(cssContent).toMatch(/\.typing-progress-bar-wrapper\s*\{[^}]*max-width:\s*720px;/s);
+      expect(cssContent).toMatch(/\.typing-progress-bar-wrapper\s*\{[^}]*max-width:\s*620px;/s);
     });
 
     it('Toolbar option buttons have no border or shadow and subtle hover background', () => {
@@ -120,6 +120,24 @@ describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () 
       expect(cssContent).toMatch(/\.toolbar-pill\s*\{[^}]*border:\s*1px\s+solid\s+transparent;/s);
       expect(cssContent).toMatch(/\.toolbar-pill\s*\{[^}]*box-shadow:\s*none;/s);
       expect(cssContent).toMatch(/\.toolbar-pill:hover:not\(:disabled\)\s*\{[^}]*border-color:\s*transparent;/s);
+    });
+
+    it('Toolbar has breathing room margin-bottom before metrics', () => {
+      expect(cssContent).toMatch(/\.test-compact-toolbar\s*\{[^}]*margin-bottom:\s*20px;/s);
+    });
+
+    it('TypingTest does not render visible Esc helper text under passage', () => {
+      const typingTestPath = path.resolve(__dirname, './TypingTest.tsx');
+      const typingTestContent = fs.readFileSync(typingTestPath, 'utf-8');
+      expect(typingTestContent).not.toContain('reset-shortcut-hint');
+      expect(typingTestContent).not.toContain('to retest');
+    });
+
+    it('Virtual keyboard keys have tasteful subtle pastel color differentiation', () => {
+      expect(cssContent).toMatch(/\.keyboard-key\[data-code\^="Key"\]/);
+      expect(cssContent).toMatch(/\.keyboard-key\[data-code\^="Digit"\]/);
+      expect(cssContent).toMatch(/\.key-group-control/);
+      expect(cssContent).toMatch(/\.key-group-space/);
     });
   });
 

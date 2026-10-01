@@ -916,9 +916,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 ? 'परीक्षण जारी है — टाइप करते रहें'
                 : 'Test in progress — keep typing!'}
             </span>
-            <span className="reset-shortcut-hint">
-              <kbd>Esc</kbd> to retest
-            </span>
           </div>
 
           {/* Optional Compact Virtual Keyboard (below passage, ~60% width on desktop) */}
