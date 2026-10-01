@@ -204,8 +204,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             type="button"
             autoFocus
             aria-label="Test Again"
+            data-testid="test-again-btn"
           >
-            ⚡ Test Again (Enter)
+            ⚡ Test Again
           </button>
         )}
 
@@ -213,24 +214,26 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           {hasPracticeData && (
             <button
               onClick={onRestart}
-              className="btn-result-link"
+              className="btn-result-secondary"
               type="button"
               aria-label="Test Again"
+              data-testid="test-again-btn"
             >
-              Test Again (Esc)
+              Test Again
             </button>
           )}
           <button
             onClick={onChangeTest}
-            className="btn-result-link"
+            className="btn-result-secondary"
             type="button"
             aria-label="Change Test"
+            data-testid="change-test-btn"
           >
             Change Test
           </button>
           <Link
             href="/progress"
-            className="btn-result-link"
+            className="btn-result-secondary"
             aria-label="View Progress"
             data-testid="view-progress-btn"
           >
@@ -238,7 +241,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           </Link>
           <Link
             href="/achievements"
-            className="btn-result-link"
+            className="btn-result-secondary"
             aria-label="View Achievements"
             data-testid="view-achievements-btn"
             style={{ display: 'none' }}
@@ -408,21 +411,20 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           </div>
 
           {/* Section 3: Virtual Keyboard Mistake Heatmap */}
-          {hasMistakes && (
-            <div className="analytics-section">
-              <h3>
-                <span>Keyboard Mistake Heatmap</span>
-              </h3>
-              <div style={{ marginTop: 'var(--space-2)' }}>
-                <VirtualKeyboard
-                  typingState={state}
-                  language={state.passage.language}
-                  mistakes={mostMistypedCharacters}
-                  initialVisible={true}
-                />
-              </div>
+          <div className="analytics-section" data-testid="keyboard-mistake-heatmap-section">
+            <h3>
+              <span>Keyboard Mistake Heatmap</span>
+            </h3>
+            <div style={{ marginTop: 'var(--space-2)' }}>
+              <VirtualKeyboard
+                typingState={state}
+                language={state.passage.language}
+                mistakes={mostMistypedCharacters}
+                initialVisible={true}
+                defaultShowMistakes={true}
+              />
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

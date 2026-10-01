@@ -812,40 +812,42 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
   return (
     <section className="typing-test-container" aria-label="Typing test engine workspace">
-      {/* Contextual Control Toolbar */}
-      <TestToolbar
-        toolbarRef={toolbarRef}
-        activeDropdown={activeDropdown}
-        setActiveDropdown={setActiveDropdown}
-        isRunning={state.status === 'running'}
-        testMode={testMode}
-        testType={effectiveTestType}
-        testTypeLabel={testTypeLabel}
-        targetLabel={targetLabel}
-        selectedLanguage={selectedLanguage}
-        difficultyLabel={difficultyLabel}
-        examProfiles={examProfiles}
-        selectedExamProfile={selectedExamProfile}
-        selectedWordTarget={selectedWordTarget}
-        selectedCharTarget={selectedCharTarget}
-        selectedDifficulty={selectedDifficulty}
-        duration={state.duration}
-        showKeyboard={showKeyboard}
-        onToggleKeyboard={handleToggleKeyboard}
-        onSelectTestType={handleSelectTestType}
-        onSelectExamProfile={handleSelectExamProfile}
-        onSelectDuration={handleSelectDuration}
-        onSelectWordTarget={handleSelectWordTarget}
-        onSelectCharTarget={handleSelectCharTarget}
-        onSelectLanguage={handleSelectLanguage}
-        onSelectDifficulty={handleSelectDifficulty}
-        onRetest={handleRetest}
-        onSelectStandardMode={handleSelectStandardMode}
-        onCompleteTest={completeTest}
-      />
+      {/* Contextual Control Toolbar - Hidden when test is completed */}
+      {!isCompleted && (
+        <TestToolbar
+          toolbarRef={toolbarRef}
+          activeDropdown={activeDropdown}
+          setActiveDropdown={setActiveDropdown}
+          isRunning={state.status === 'running'}
+          testMode={testMode}
+          testType={effectiveTestType}
+          testTypeLabel={testTypeLabel}
+          targetLabel={targetLabel}
+          selectedLanguage={selectedLanguage}
+          difficultyLabel={difficultyLabel}
+          examProfiles={examProfiles}
+          selectedExamProfile={selectedExamProfile}
+          selectedWordTarget={selectedWordTarget}
+          selectedCharTarget={selectedCharTarget}
+          selectedDifficulty={selectedDifficulty}
+          duration={state.duration}
+          showKeyboard={showKeyboard}
+          onToggleKeyboard={handleToggleKeyboard}
+          onSelectTestType={handleSelectTestType}
+          onSelectExamProfile={handleSelectExamProfile}
+          onSelectDuration={handleSelectDuration}
+          onSelectWordTarget={handleSelectWordTarget}
+          onSelectCharTarget={handleSelectCharTarget}
+          onSelectLanguage={handleSelectLanguage}
+          onSelectDifficulty={handleSelectDifficulty}
+          onRetest={handleRetest}
+          onSelectStandardMode={handleSelectStandardMode}
+          onCompleteTest={completeTest}
+        />
+      )}
 
-      {/* Exam Mode Active Details (when in exam mode) */}
-      {testMode === 'exam' && (
+      {/* Exam Mode Active Details (when in exam mode and test is active) */}
+      {!isCompleted && testMode === 'exam' && (
         <ExamActiveBar profile={selectedExamProfile} />
       )}
 

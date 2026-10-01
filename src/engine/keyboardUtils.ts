@@ -230,7 +230,35 @@ const INSCRIPT_ATOMIC_MAP: Record<string, KeyMappingResult> = {
  */
 export function mapEnglishCharToKey(char: string): KeyMappingResult | null {
   if (!char) return null;
-  return ENGLISH_CHAR_MAP[char] || null;
+  if (ENGLISH_CHAR_MAP[char]) return ENGLISH_CHAR_MAP[char];
+
+  // Normalize special key names and labels
+  const lower = char.toLowerCase();
+  if (char === ' ' || lower === 'space') {
+    return { code: 'Space', requiresShift: false, displayChar: 'Space' };
+  }
+  if (char === '\n' || lower === 'enter' || lower === 'return') {
+    return { code: 'Enter', requiresShift: false, displayChar: 'Enter' };
+  }
+  if (lower === 'backspace') {
+    return { code: 'Backspace', requiresShift: false, displayChar: 'Backspace' };
+  }
+  if (lower === 'shift' || lower === 'shiftleft' || lower === 'shiftright') {
+    return { code: 'ShiftLeft', requiresShift: false, displayChar: 'Shift' };
+  }
+  if (char === '\t' || lower === 'tab') {
+    return { code: 'Tab', requiresShift: false, displayChar: 'Tab' };
+  }
+  if (/^key[a-z]$/i.test(char)) {
+    const letter = char.charAt(3).toLowerCase();
+    if (ENGLISH_CHAR_MAP[letter]) return ENGLISH_CHAR_MAP[letter];
+  }
+  if (/^digit[0-9]$/i.test(char)) {
+    const digit = char.charAt(5);
+    if (ENGLISH_CHAR_MAP[digit]) return ENGLISH_CHAR_MAP[digit];
+  }
+
+  return null;
 }
 
 /**

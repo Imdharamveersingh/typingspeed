@@ -17,6 +17,7 @@ interface VirtualKeyboardProps {
   initialVisible?: boolean;
   visible?: boolean;
   onToggleVisible?: () => void;
+  defaultShowMistakes?: boolean;
 }
 
 export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = React.memo(({
@@ -28,9 +29,12 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = React.memo(({
   initialVisible = false,
   visible,
   onToggleVisible,
+  defaultShowMistakes,
 }) => {
   const [internalVisible, setInternalVisible] = useState<boolean>(initialVisible);
-  const [showMistakeHeatmap, setShowMistakeHeatmap] = useState<boolean>(false);
+  const [showMistakeHeatmap, setShowMistakeHeatmap] = useState<boolean>(
+    defaultShowMistakes ?? (typingState.status === 'completed')
+  );
 
   // Restore visibility preference on client mount if not explicitly controlled
   useEffect(() => {

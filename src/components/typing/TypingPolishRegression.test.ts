@@ -10,7 +10,10 @@ import {
 } from '@/engine/typingEngine';
 import { calculateProgressPercentage } from './TypingProgressBar';
 import { MetricsBar } from './MetricsBar';
-import { Passage } from '@/engine/types';
+import { ResultCard } from './ResultCard';
+import { VirtualKeyboard } from '@/components/keyboard/VirtualKeyboard';
+import { getKeyboardHighlightState } from '@/engine/keyboardUtils';
+import { Passage, TypingState } from '@/engine/types';
 
 describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () => {
   // =========================================================================
@@ -94,16 +97,21 @@ describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () 
       expect(html).toContain('Characters');
     });
 
-    it('CSS provides dedicated stacked alignment preventing broken wrapping of "9 / 1000"', () => {
-      // Must have .metric-target-progress and .target-progress-value with column flex and center alignment
+    it('CSS provides dedicated horizontal alignment preventing broken wrapping of "9 / 1000"', () => {
+      // Must have .metric-target-progress and .target-progress-value with horizontal alignment and nowrap
       expect(cssContent).toMatch(/\.metric-target-progress\s*\{[^}]*min-width:/s);
-      expect(cssContent).toMatch(/\.target-progress-value\s*\{[^}]*display:\s*flex;/s);
-      expect(cssContent).toMatch(/\.target-progress-value\s*\{[^}]*flex-direction:\s*column;/s);
-      expect(cssContent).toMatch(/\.target-progress-value\s*\{[^}]*align-items:\s*center;/s);
+      expect(cssContent).toMatch(/\.target-progress-value\s*\{[^}]*display:\s*inline-flex;/s);
+      expect(cssContent).toMatch(/\.target-progress-value\s*\{[^}]*flex-direction:\s*row;/s);
+      expect(cssContent).toMatch(/\.target-progress-value\s*\{[^}]*align-items:\s*baseline;/s);
       expect(cssContent).toMatch(/\.target-progress-value\s*\{[^}]*white-space:\s*nowrap;/s);
       expect(cssContent).toMatch(/\.target-progress-value\s+\.target-num\s*\{[^}]*text-align:\s*center;/s);
       expect(cssContent).toMatch(/\.target-progress-value\s+\.target-slash\s*\{[^}]*text-align:\s*center;/s);
       expect(cssContent).toMatch(/\.target-progress-value\s+\.target-den\s*\{[^}]*text-align:\s*center;/s);
+    });
+
+    it('Typing progress bar track height is 4px pill shape', () => {
+      expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*height:\s*4px;/s);
+      expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*border-radius:\s*9999px;/s);
     });
   });
 
@@ -348,6 +356,331 @@ describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () 
         elapsedSeconds: 15,
       });
       expect(pct2).toBe(25);
+    });
+  });
+
+  // =========================================================================
+  // G. Completed Result Screen: Hierarchy & Absence of Toolbar
+  // =========================================================================
+  describe('G. Completed Result Screen Hierarchy', () => {
+    function createCompletedStateWithMistakes(): TypingState {
+      const passage: Passage = {
+        id: 'test-p1',
+        title: 'Test',
+        text: 'The quick brown fox',
+        language: 'en',
+        difficulty: 'medium',
+      };
+      let state = createInitialState(passage, 60, 'time');
+      // Type 'The qu' correctly, then error on 'i' (typed 'x'), then 'ck'
+      'The qu'.split('').forEach((c, i) => {
+        state = processKeystroke(state, c, 1000 + i * 50);
+      });
+      state = processKeystroke(state, 'x', 1400); // mistake on 'i'
+      'ck'.split('').forEach((c, i) => {
+        state = processKeystroke(state, c, 1500 + i * 50);
+      });
+      return {
+        ...state,
+        status: 'completed',
+        startTime: 1000,
+        endTime: 2000,
+      };
+    }
+
+    it('completed result screen renders result summary and primary/secondary actions', () => {
+      const state = createCompletedStateWithMistakes();
+      const html = renderToStaticMarkup(
+        React.createElement(ResultCard, {
+          state,
+          onRestart: () => {},
+          onChangeTest: () => {},
+          onPracticeMistakes: () => {},
+          testMode: 'standard',
+        })
+      );
+
+      // Result summary visible
+      expect(html).toContain('result-card');
+      expect(html).toContain('Test Complete');
+
+      // Practice My Mistakes visible as primary CTA
+      expect(html).toContain('Practice My Mistakes');
+      expect(html).toContain('practice-mistakes-btn');
+
+      // Three secondary actions visible
+      expect(html).toContain('Test Again');
+      expect(html).toContain('Change Test');
+      expect(html).toContain('View Progress');
+    });
+
+    it('TypingTest component file conditionally hides TestToolbar and ExamActiveBar on completion', () => {
+      const typingTestPath = path.resolve(__dirname, './TypingTest.tsx');
+      const content = fs.readFileSync(typingTestPath, 'utf-8');
+
+      // Toolbar is only rendered when not completed
+      expect(content).toMatch(/\{!isCompleted\s*&&\s*\(\s*<TestToolbar/s);
+      expect(content).toMatch(/\{!isCompleted\s*&&\s*testMode\s*===\s*'exam'\s*&&\s*\(\s*<ExamActiveBar/s);
+    });
+  });
+
+  // =========================================================================
+  // H. "Test Again" Visible Label: Remove "(Esc)" Text
+  // =========================================================================
+  describe('H. "Test Again" Action Label', () => {
+    it('renders "Test Again" without "(Esc)" text in both mistake and flawless results', () => {
+      const passage: Passage = {
+        id: 'p-flawless',
+        title: 'P',
+        text: 'Clean test',
+        language: 'en',
+        difficulty: 'easy',
+      };
+      let flawlessState = createInitialState(passage, 60, 'time');
+      'Clean test'.split('').forEach((c, i) => {
+        flawlessState = processKeystroke(flawlessState, c, 1000 + i * 50);
+      });
+      flawlessState = {
+        ...flawlessState,
+        status: 'completed',
+        startTime: 1000,
+        endTime: 2000,
+      };
+
+      const htmlFlawless = renderToStaticMarkup(
+        React.createElement(ResultCard, {
+          state: flawlessState,
+          onRestart: () => {},
+          onChangeTest: () => {},
+          onPracticeMistakes: () => {},
+          testMode: 'standard',
+        })
+      );
+
+      expect(htmlFlawless).toContain('Test Again');
+      expect(htmlFlawless).not.toContain('Test Again (Esc)');
+      expect(htmlFlawless).not.toContain('(Esc)');
+
+      // With mistakes
+      const stateWithMistakes = {
+        ...flawlessState,
+        characters: flawlessState.characters.map((ch, idx) =>
+          idx === 2 ? { ...ch, state: 'incorrect' as const, typedChar: 'z' } : ch
+        ),
+      };
+      const htmlMistakes = renderToStaticMarkup(
+        React.createElement(ResultCard, {
+          state: stateWithMistakes,
+          onRestart: () => {},
+          onChangeTest: () => {},
+          onPracticeMistakes: () => {},
+          testMode: 'standard',
+        })
+      );
+
+      expect(htmlMistakes).toContain('Test Again');
+      expect(htmlMistakes).not.toContain('Test Again (Esc)');
+      expect(htmlMistakes).not.toContain('(Esc)');
+    });
+  });
+
+  // =========================================================================
+  // I. Three Secondary Actions: Visual Clarity as Clickable Buttons
+  // =========================================================================
+  describe('I. Three Secondary Actions Button Styling', () => {
+    const cssPath = path.resolve(__dirname, '../../styles/globals.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    it('CSS provides clear clickable secondary button appearance', () => {
+      // Must style .btn-result-secondary with background, border, padding, border-radius
+      expect(cssContent).toMatch(/\.btn-result-secondary[^{]*\{[^}]*background-color:/s);
+      expect(cssContent).toMatch(/\.btn-result-secondary[^{]*\{[^}]*border:\s*1px\s+solid/s);
+      expect(cssContent).toMatch(/\.btn-result-secondary[^{]*\{[^}]*padding:/s);
+      expect(cssContent).toMatch(/\.btn-result-secondary[^{]*\{[^}]*border-radius:/s);
+      expect(cssContent).toMatch(/\.btn-result-secondary:hover/s);
+      expect(cssContent).toMatch(/\.btn-result-secondary:focus-visible/s);
+    });
+
+    it('ResultCard renders the 3 secondary buttons with btn-result-secondary class', () => {
+      const passage: Passage = {
+        id: 'p-btn',
+        title: 'Btn',
+        text: 'Error text',
+        language: 'en',
+        difficulty: 'easy',
+      };
+      let state = createInitialState(passage, 60, 'time');
+      'Error'.split('').forEach((c, i) => {
+        state = processKeystroke(state, c, 1000 + i * 50);
+      });
+      // Mistake
+      state = processKeystroke(state, 'z', 1300);
+      state = {
+        ...state,
+        status: 'completed',
+        startTime: 1000,
+        endTime: 2000,
+      };
+
+      const html = renderToStaticMarkup(
+        React.createElement(ResultCard, {
+          state,
+          onRestart: () => {},
+          onChangeTest: () => {},
+          onPracticeMistakes: () => {},
+          testMode: 'standard',
+        })
+      );
+
+      // Verify secondary actions container
+      expect(html).toContain('result-secondary-actions');
+      expect(html).toContain('btn-result-secondary');
+      expect(html).toContain('Test Again');
+      expect(html).toContain('Change Test');
+      expect(html).toContain('View Progress');
+    });
+  });
+
+  // =========================================================================
+  // J. Keyboard Mistake Heatmap: Dynamic Mistake Highlighting & Normal on Zero
+  // =========================================================================
+  describe('J. Keyboard Mistake Heatmap Dynamic Highlight', () => {
+    it('highlights actual mistake key dynamically without hardcoding', () => {
+      const dummyState: TypingState = {
+        status: 'completed',
+        passage: { id: 'p', title: 'T', text: 'Text', language: 'en', difficulty: 'easy' },
+        duration: 60,
+        startTime: 1000,
+        endTime: 2000,
+        currentIndex: 4,
+        characters: [],
+        extraCharacters: [],
+        totalKeystrokes: 10,
+        correctStrokes: 10,
+        incorrectStrokes: 0,
+      };
+
+      // Mistake on 'T' (KeyT)
+      const highlightStateT = getKeyboardHighlightState({
+        typingState: dummyState,
+        language: 'en',
+        mistakes: [{ character: 'T', count: 3 }],
+      });
+
+      expect(highlightStateT.mistakeFrequencies.get('KeyT')).toBe(3);
+      expect(highlightStateT.mistakeFrequencies.get('KeyA')).toBeUndefined();
+
+      // Mistake on 'B' (KeyB)
+      const highlightStateB = getKeyboardHighlightState({
+        typingState: dummyState,
+        language: 'en',
+        mistakes: [{ character: 'B', count: 2 }],
+      });
+
+      expect(highlightStateB.mistakeFrequencies.get('KeyB')).toBe(2);
+      expect(highlightStateB.mistakeFrequencies.get('KeyT')).toBeUndefined();
+    });
+
+    it('dynamically supports Space, Enter, Backspace, Shift, and multiple mistake keys', () => {
+      const dummyState: TypingState = {
+        status: 'completed',
+        passage: { id: 'p', title: 'T', text: 'Text', language: 'en', difficulty: 'easy' },
+        duration: 60,
+        startTime: 1000,
+        endTime: 2000,
+        currentIndex: 4,
+        characters: [],
+        extraCharacters: [],
+        totalKeystrokes: 10,
+        correctStrokes: 10,
+        incorrectStrokes: 0,
+      };
+
+      const highlightMultiple = getKeyboardHighlightState({
+        typingState: dummyState,
+        language: 'en',
+        mistakes: [
+          { character: 'Space', count: 4 },
+          { character: 'Enter', count: 1 },
+          { character: 'Backspace', count: 2 },
+          { character: 'Shift', count: 1 },
+          { character: 'A', count: 3 },
+        ],
+      });
+
+      expect(highlightMultiple.mistakeFrequencies.get('Space')).toBe(4);
+      expect(highlightMultiple.mistakeFrequencies.get('Enter')).toBe(1);
+      expect(highlightMultiple.mistakeFrequencies.get('Backspace')).toBe(2);
+      expect(highlightMultiple.mistakeFrequencies.get('ShiftLeft')).toBe(1);
+      expect(highlightMultiple.mistakeFrequencies.get('KeyA')).toBe(3);
+    });
+
+    it('zero mistakes leaves keyboard completely normal with no mistake keys', () => {
+      const dummyState: TypingState = {
+        status: 'completed',
+        passage: { id: 'p', title: 'T', text: 'Text', language: 'en', difficulty: 'easy' },
+        duration: 60,
+        startTime: 1000,
+        endTime: 2000,
+        currentIndex: 4,
+        characters: [],
+        extraCharacters: [],
+        totalKeystrokes: 10,
+        correctStrokes: 10,
+        incorrectStrokes: 0,
+      };
+
+      const highlightFlawless = getKeyboardHighlightState({
+        typingState: dummyState,
+        language: 'en',
+        mistakes: [],
+      });
+
+      expect(highlightFlawless.mistakeFrequencies.size).toBe(0);
+
+      const html = renderToStaticMarkup(
+        React.createElement(VirtualKeyboard, {
+          typingState: dummyState,
+          language: 'en',
+          mistakes: [],
+          initialVisible: true,
+          defaultShowMistakes: true,
+        })
+      );
+
+      // No key should have key-has-mistakes
+      expect(html).not.toContain('key-has-mistakes');
+      expect(html).not.toContain('key-mistake-badge');
+    });
+
+    it('renders error highlight when mistake keys are present in VirtualKeyboard markup', () => {
+      const dummyState: TypingState = {
+        status: 'completed',
+        passage: { id: 'p', title: 'T', text: 'Text', language: 'en', difficulty: 'easy' },
+        duration: 60,
+        startTime: 1000,
+        endTime: 2000,
+        currentIndex: 4,
+        characters: [],
+        extraCharacters: [],
+        totalKeystrokes: 10,
+        correctStrokes: 10,
+        incorrectStrokes: 0,
+      };
+
+      const html = renderToStaticMarkup(
+        React.createElement(VirtualKeyboard, {
+          typingState: dummyState,
+          language: 'en',
+          mistakes: [{ character: 'T', count: 2 }],
+          initialVisible: true,
+          defaultShowMistakes: true,
+        })
+      );
+
+      expect(html).toContain('key-has-mistakes');
+      expect(html).toContain('key-mistake-badge');
+      expect(html).toContain('data-code="KeyT"');
     });
   });
 });
