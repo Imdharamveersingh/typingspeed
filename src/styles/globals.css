@@ -4,18 +4,18 @@
    ========================================================================== */
 
 :root {
-  /* Color Palette — White-First Clean Productivity Theme (TypingSpeed Approved) */
-  --bg-primary: #F8FAFC;
-  --bg-secondary: #F1F5F9;
+  /* Color Palette — Pure White Clean Productivity Theme (#FFFFFF Canvas & Header) */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8F9FA;
   --bg-surface: #FFFFFF;
-  --bg-surface-hover: #F8FAFC;
+  --bg-surface-hover: #F4F4F6;
   
-  --border-subtle: #E2E8F0;
-  --border-strong: #CBD5E1;
+  --border-subtle: #E4E4E7;
+  --border-strong: #D1D5DB;
   
   --text-primary: #111827;
-  --text-secondary: #64748B;
-  --text-muted: #94A3B8;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
   --text-inverse: #FFFFFF;
   
   --accent-primary: #2563EB;
@@ -71,8 +71,8 @@
   --radius-full: 9999px;
 
   /* Subtle Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
 
   /* Layout Containers & Breakpoints */
   --container-max-width: 1000px;
@@ -84,64 +84,64 @@
   --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Color Palette — Dark Theme (TypingSpeed Approved) */
+/* Color Palette — Refined Dark Theme (#0F0F10 Foundation) */
 [data-theme="dark"] {
-  --bg-primary: #0F172A;
-  --bg-secondary: #1E293B;
-  --bg-surface: #111827;
-  --bg-surface-hover: #1E293B;
+  --bg-primary: #0F0F10;
+  --bg-surface: #18181B;
+  --bg-secondary: #202023;
+  --bg-surface-hover: #27272A;
   
-  --border-subtle: #1E293B;
-  --border-strong: #334155;
+  --border-subtle: #2F2F33;
+  --border-strong: #3F3F46;
   
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --text-inverse: #111827;
+  --text-primary: #F5F5F5;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --text-inverse: #0F0F10;
   
-  --accent-primary: #60A5FA;
-  --accent-primary-hover: #93C5FD;
-  --accent-muted: rgba(96, 165, 250, 0.15);
+  --accent-primary: #3B82F6;
+  --accent-primary-hover: #60A5FA;
+  --accent-muted: rgba(59, 130, 246, 0.15);
   
   --status-success: #4ADE80;
   --status-error: #F87171;
   --status-warning: #F59E0B;
   
-  --focus-ring: #60A5FA;
-  --focus-ring-offset: #0F172A;
+  --focus-ring: #3B82F6;
+  --focus-ring-offset: #0F0F10;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg-primary: #0F172A;
-    --bg-secondary: #1E293B;
-    --bg-surface: #111827;
-    --bg-surface-hover: #1E293B;
+    --bg-primary: #0F0F10;
+    --bg-surface: #18181B;
+    --bg-secondary: #202023;
+    --bg-surface-hover: #27272A;
     
-    --border-subtle: #1E293B;
-    --border-strong: #334155;
+    --border-subtle: #2F2F33;
+    --border-strong: #3F3F46;
     
-    --text-primary: #F8FAFC;
-    --text-secondary: #94A3B8;
-    --text-muted: #64748B;
-    --text-inverse: #111827;
+    --text-primary: #F5F5F5;
+    --text-secondary: #A1A1AA;
+    --text-muted: #71717A;
+    --text-inverse: #0F0F10;
     
-    --accent-primary: #60A5FA;
-    --accent-primary-hover: #93C5FD;
-    --accent-muted: rgba(96, 165, 250, 0.15);
+    --accent-primary: #3B82F6;
+    --accent-primary-hover: #60A5FA;
+    --accent-muted: rgba(59, 130, 246, 0.15);
     
     --status-success: #4ADE80;
     --status-error: #F87171;
     --status-warning: #F59E0B;
     
-    --focus-ring: #60A5FA;
-    --focus-ring-offset: #0F172A;
+    --focus-ring: #3B82F6;
+    --focus-ring-offset: #0F0F10;
 
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -403,12 +403,13 @@ a:hover {
 }
 
 /* Zone 3: Right - Actions (Theme Toggle & Mobile Menu Trigger) */
+.header-actions,
 .header-right {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--space-2);
-  flex: 1 1 0;
+  margin-left: 16px;
+  flex: 0 0 auto;
 }
 
 /* Theme Toggle Button */
@@ -416,23 +417,23 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   padding: 0;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
-  background-color: var(--bg-secondary);
+  background-color: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .theme-toggle-btn:hover {
   color: var(--text-primary);
   border-color: var(--border-strong);
-  background-color: var(--bg-surface-hover);
+  background-color: var(--bg-secondary);
 }
 
 .theme-toggle-btn:focus-visible {
@@ -441,8 +442,8 @@ a:hover {
 }
 
 .theme-toggle-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: block;
 }
 
@@ -538,9 +539,15 @@ a:hover {
   .header-center {
     display: none;
   }
+  .header-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
   .mobile-menu-btn {
     display: inline-flex;
-    margin-left: auto;
+    margin-left: 0;
   }
   .mobile-nav-menu.open {
     display: block;
@@ -4340,7 +4347,7 @@ a:hover {
 }
 
 [data-theme="dark"] .unfocused-overlay {
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(15, 15, 16, 0.85);
 }
 
 [data-theme="dark"] .unfocused-badge {

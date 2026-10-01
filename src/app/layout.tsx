@@ -62,7 +62,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -70,7 +70,7 @@ export default function RootLayout({
               (function() {
                 try {
                   var saved = localStorage.getItem('typingspeed_theme');
-                  var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                  var theme = (saved === 'dark' || saved === 'light') ? saved : 'light';
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch (e) {}
               })();

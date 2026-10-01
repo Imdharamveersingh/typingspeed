@@ -10,10 +10,20 @@ export const ThemeToggle: React.FC = () => {
 
   useEffect(() => {
     // Read current applied theme from document attribute or localStorage
+    const docTheme = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      // Ignore localStorage exceptions in private mode
+    }
+
     const currentTheme =
-      (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') ||
-      (localStorage.getItem(STORAGE_KEY) as 'light' | 'dark') ||
-      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      docTheme === 'dark' || docTheme === 'light'
+        ? (docTheme as 'light' | 'dark')
+        : saved === 'dark' || saved === 'light'
+        ? (saved as 'light' | 'dark')
+        : 'light';
 
     setTheme(currentTheme);
     setMounted(true);
@@ -22,7 +32,9 @@ export const ThemeToggle: React.FC = () => {
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', nextTheme);
+    }
     try {
       localStorage.setItem(STORAGE_KEY, nextTheme);
     } catch {
@@ -31,7 +43,7 @@ export const ThemeToggle: React.FC = () => {
   };
 
   const isDark = mounted ? theme === 'dark' : false;
-  const label = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+  const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
 
   return (
     <button
@@ -40,12 +52,15 @@ export const ThemeToggle: React.FC = () => {
       onClick={toggleTheme}
       aria-label={label}
       title={label}
+      data-testid="theme-toggle-btn"
     >
       {isDark ? (
-        /* Sun Icon */
+        /* Sun Icon (18px) */
         <svg
           className="theme-toggle-icon"
           viewBox="0 0 24 24"
+          width="18"
+          height="18"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -64,10 +79,12 @@ export const ThemeToggle: React.FC = () => {
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       ) : (
-        /* Moon Icon */
+        /* Moon Icon (18px) */
         <svg
           className="theme-toggle-icon"
           viewBox="0 0 24 24"
+          width="18"
+          height="18"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"

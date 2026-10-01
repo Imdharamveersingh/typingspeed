@@ -5,16 +5,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import logoImg from '@/assets/logo-tight.png';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export const Header: React.FC = () => {
   const pathname = usePathname();
+  const currentPath = pathname || '';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
-  const isHome = pathname === '/';
-  const isPractice = pathname === '/practice' || pathname.startsWith('/practice/');
-  const isProgress = pathname === '/progress' || pathname.startsWith('/progress/');
-  const isExam = pathname === '/exam' || pathname.startsWith('/exam/');
+  const isHome = currentPath === '/';
+  const isPractice = currentPath === '/practice' || currentPath.startsWith('/practice/');
+  const isProgress = currentPath === '/progress' || currentPath.startsWith('/progress/');
+  const isExam = currentPath === '/exam' || currentPath.startsWith('/exam/');
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -57,6 +59,8 @@ export const Header: React.FC = () => {
               src={logoImg}
               alt="TypingSpeed"
               className="brand-logo"
+              width={165}
+              height={32}
               priority
             />
           </Link>
@@ -97,48 +101,51 @@ export const Header: React.FC = () => {
           </ul>
         </nav>
 
-        {/* Mobile Menu Toggle Button */}
-        <button
-          type="button"
-          className="mobile-menu-btn"
-          onClick={() => setMobileMenuOpen((prev) => !prev)}
-          aria-expanded={mobileMenuOpen}
-          aria-label="Toggle navigation menu"
-          aria-controls="mobile-navigation"
-        >
-          {mobileMenuOpen ? (
-            /* Close Icon (✕) */
-            <svg
-              className="mobile-menu-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          ) : (
-            /* Hamburger Icon (☰) */
-            <svg
-              className="mobile-menu-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          )}
-        </button>
+        {/* Header Actions: Theme Toggle + Mobile Menu Button */}
+        <div className="header-actions">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            aria-expanded={mobileMenuOpen}
+            aria-label="Toggle navigation menu"
+            aria-controls="mobile-navigation"
+          >
+            {mobileMenuOpen ? (
+              /* Close Icon (✕) */
+              <svg
+                className="mobile-menu-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              /* Hamburger Icon (☰) */
+              <svg
+                className="mobile-menu-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Navigation Dropdown */}
