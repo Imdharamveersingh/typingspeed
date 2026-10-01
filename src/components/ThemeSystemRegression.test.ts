@@ -5,6 +5,8 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ThemeToggle } from './ThemeToggle';
 import { Header } from './Header';
+import { ResultCard } from './typing/ResultCard';
+import { createInitialState } from '@/engine/typingEngine';
 
 describe('TypingSpeed Light and Dark Theme System Refinements', () => {
   const cssPath = path.resolve(__dirname, '../styles/globals.css');
@@ -76,12 +78,86 @@ describe('TypingSpeed Light and Dark Theme System Refinements', () => {
       expect(html).toContain('Progress');
       expect(html).toContain('Gov Job Test');
     });
+
+    it('Theme toggle button is minimal and borderless', () => {
+      expect(cssContent).toMatch(/\.theme-toggle-btn\s*\{[^}]*border:\s*none;/s);
+      expect(cssContent).toMatch(/\.theme-toggle-btn\s*\{[^}]*background-color:\s*transparent;/s);
+    });
   });
 
   // =========================================================================
-  // 5. Layout Theme Initialization
+  // 5. Dark Mode Keyboard Cohesion (No Pure Black Blocks)
   // =========================================================================
-  describe('5. Theme Script in layout.tsx', () => {
+  describe('5. Dark Mode Keyboard Hierarchy & Active State Overrides', () => {
+    it('Modifier and control keys do not use pure black blocks in dark mode', () => {
+      // Must not have pure black #000000 or flat #18181B for modifiers
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.key-group-control[^}]*background:\s*#17222A/s);
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.key-group-space[^}]*background:\s*#1E222A/s);
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.keyboard-key\[data-code\^="Key"\][^}]*background:\s*#181D28/s);
+    });
+
+    it('Active keyboard states override base colors with !important', () => {
+      expect(cssContent).toMatch(/\.keyboard-key\.key-next\s*\{[^}]*!important/s);
+      expect(cssContent).toMatch(/\.keyboard-key\.key-pressed\s*\{[^}]*!important/s);
+      expect(cssContent).toMatch(/\.keyboard-key\.key-correct\s*\{[^}]*!important/s);
+      expect(cssContent).toMatch(/\.keyboard-key\.key-incorrect\s*\{[^}]*!important/s);
+    });
+  });
+
+  // =========================================================================
+  // 6. Passage Character Contrast & Caret
+  // =========================================================================
+  describe('6. Passage Character States & Contrast', () => {
+    it('defines distinct visible states for untyped, correct, incorrect, and corrected characters', () => {
+      expect(cssContent).toMatch(/\.char-untyped\s*\{/s);
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.char-untyped\s*\{/s);
+      expect(cssContent).toMatch(/\.char-correct\s*\{/s);
+      expect(cssContent).toMatch(/\.char-incorrect\s*\{/s);
+      expect(cssContent).toMatch(/\.char-corrected\s*\{/s);
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.char-corrected\s*\{/s);
+      expect(cssContent).toMatch(/\.caret-cursor\s*\{/s);
+    });
+  });
+
+  // =========================================================================
+  // 7. Result Screen Cleanup Verification
+  // =========================================================================
+  describe('7. Result Screen UI Cleanup', () => {
+    it('does NOT contain "Test Complete" badge or "Typing Accuracy Legend"', () => {
+      const passage = {
+        id: '1',
+        title: 'Test',
+        text: 'The quick brown fox jumps over the lazy dog.',
+        language: 'en' as const,
+        difficulty: 'medium' as const,
+      };
+
+      const state = {
+        ...createInitialState(passage, 60, 'time'),
+        status: 'completed' as const,
+        startTime: 1000,
+        endTime: 3000,
+      };
+
+      const html = renderToStaticMarkup(
+        React.createElement(ResultCard, {
+          state,
+          onRestart: () => {},
+          onChangeTest: () => {},
+          onPracticeMistakes: () => {},
+        })
+      );
+      expect(html).not.toContain('Test Complete');
+      expect(html).not.toContain('Typing Accuracy Legend');
+      expect(html).toContain('WPM');
+      expect(html).toContain('Accuracy');
+    });
+  });
+
+  // =========================================================================
+  // 8. Layout Theme Initialization
+  // =========================================================================
+  describe('8. Theme Script in layout.tsx', () => {
     const layoutPath = path.resolve(__dirname, '../app/layout.tsx');
     const layoutContent = fs.readFileSync(layoutPath, 'utf-8');
 

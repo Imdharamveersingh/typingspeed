@@ -412,28 +412,27 @@ a:hover {
   flex: 0 0 auto;
 }
 
-/* Theme Toggle Button */
+/* Theme Toggle Button — Minimal Icon-Only Navigation Item */
 .theme-toggle-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   padding: 0;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  border: none;
   background-color: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .theme-toggle-btn:hover {
   color: var(--text-primary);
-  border-color: var(--border-strong);
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-surface-hover);
 }
 
 .theme-toggle-btn:focus-visible {
@@ -845,18 +844,19 @@ a:hover {
 }
 
 .control-label {
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 500;
   text-transform: uppercase;
   color: var(--text-muted);
-  letter-spacing: 0.05em;
-  margin-right: 1px;
+  letter-spacing: 0.06em;
+  margin-right: 2px;
 }
 
 .control-value {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .toolbar-pill:hover:not(:disabled) {
@@ -906,9 +906,15 @@ a:hover {
 }
 
 .pill-arrow {
-  font-size: 10px;
-  opacity: 0.65;
+  font-size: 9px;
+  opacity: 0.45;
+  color: var(--text-muted);
   margin-left: 2px;
+  transition: opacity var(--transition-fast);
+}
+
+.toolbar-pill:hover .pill-arrow {
+  opacity: 0.75;
 }
 
 /* Floating Dropdown Menus */
@@ -1234,7 +1240,7 @@ a:hover {
 /* Minimalist Live Typing Progress Bar */
 .typing-progress-bar-wrapper {
   width: 100%;
-  max-width: 620px;
+  max-width: 540px;
   margin: 2px auto 10px;
   display: flex;
   align-items: center;
@@ -1243,7 +1249,7 @@ a:hover {
 
 .typing-progress-bar-track {
   width: 100%;
-  height: 5px;
+  height: 4px;
   background-color: var(--border-subtle);
   border-radius: 9999px;
   overflow: hidden;
@@ -1264,7 +1270,7 @@ a:hover {
     margin: 2px auto 8px;
   }
   .typing-progress-bar-track {
-    height: 5px;
+    height: 4px;
   }
 }
 
@@ -1289,7 +1295,7 @@ a:hover {
 }
 
 .test-keyboard-wrapper {
-  margin-top: 6px;
+  margin-top: 4px;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -1301,9 +1307,10 @@ a:hover {
   min-width: 540px;
   margin: 0 auto;
   padding: 6px 12px 10px;
-  background: #FFFFFF;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-sm);
 }
 
 .test-keyboard-wrapper .virtual-keyboard-header {
@@ -1536,7 +1543,11 @@ a:hover {
 }
 
 .char-untyped {
-  color: var(--text-muted);
+  color: #788292;
+}
+
+[data-theme="dark"] .char-untyped {
+  color: #8E8EA0;
 }
 
 .char-correct {
@@ -4124,11 +4135,11 @@ a:hover {
   font-size: 11px;
 }
 
-/* Control & Modifier Keys: Subtle light cyan/sky accent tint */
+/* Control & Modifier Keys: Subtle neutral with quiet cyan/sky accent tint */
 .key-group-control,
 .key-group-modifier {
-  background: #ECFEFF;
-  border-color: rgba(6, 182, 212, 0.25);
+  background: #F4F8FA;
+  border-color: #E2E8F0;
   color: #0e7490;
 }
 
@@ -4140,30 +4151,30 @@ a:hover {
 
 /* 1. Letter keys: Soft, clean light blue pastel tint */
 .keyboard-key[data-code^="Key"] {
-  background: #F0F7FF;
-  border-color: rgba(59, 130, 246, 0.22);
+  background: #F6FAFF;
+  border-color: #E0EBF7;
 }
 
 .keyboard-key[data-code^="Key"] .key-label-primary {
-  color: #1e40af;
+  color: #1e3a8a;
 }
 
 /* 2. Number & symbol keys: Subtle light purple/indigo pastel tint */
 .keyboard-key[data-code^="Digit"],
 .keyboard-key.key-group-punctuation {
-  background: #F5F3FF;
-  border-color: rgba(139, 92, 246, 0.22);
+  background: #F9F8FD;
+  border-color: #E6E4F1;
 }
 
 .keyboard-key[data-code^="Digit"] .key-label-primary,
 .keyboard-key.key-group-punctuation .key-label-primary {
-  color: #5b21b6;
+  color: #4c1d95;
 }
 
-/* 3. Spacebar: Subtle neutral slate-blue tint */
+/* 3. Spacebar: Subtle neutral slate tint */
 .key-group-space {
-  background: #F1F5F9;
-  border-color: rgba(100, 116, 139, 0.22);
+  background: #F8FAFC;
+  border-color: #E2E8F0;
 }
 
 .key-group-space .key-label-primary {
@@ -4172,46 +4183,61 @@ a:hover {
   letter-spacing: 0.04em;
 }
 
-/* Dark Mode Theme Tints */
+/* Dark Mode Theme Tints — Cohesive, Professional, No Pure Black Blocks */
+[data-theme="dark"] .virtual-keyboard-container {
+  background: #151518;
+  border-color: #27272A;
+}
+
+[data-theme="dark"] .keyboard-key {
+  background: #1C1C21;
+  border-color: #2A2A30;
+  color: #D4D4D8;
+}
+
+/* 1. Main letter keys: subtle dark surface + very subtle blue tint */
 [data-theme="dark"] .keyboard-key[data-code^="Key"] {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.28);
+  background: #181D28;
+  border-color: rgba(59, 130, 246, 0.22);
 }
 
 [data-theme="dark"] .keyboard-key[data-code^="Key"] .key-label-primary {
-  color: #93c5fd;
+  color: #BFDBFE;
 }
 
+/* 2. Number/punctuation keys: subtle dark surface + very subtle purple/indigo tint */
 [data-theme="dark"] .keyboard-key[data-code^="Digit"],
 [data-theme="dark"] .keyboard-key.key-group-punctuation {
-  background: rgba(139, 92, 246, 0.12);
-  border-color: rgba(139, 92, 246, 0.28);
+  background: #1C1A2A;
+  border-color: rgba(139, 92, 246, 0.22);
 }
 
 [data-theme="dark"] .keyboard-key[data-code^="Digit"] .key-label-primary,
 [data-theme="dark"] .keyboard-key.key-group-punctuation .key-label-primary {
-  color: #c4b5fd;
+  color: #DDD6FE;
 }
 
+/* 3. Modifier/control keys (Tab, Caps, Shift, Enter, Backspace): dark neutral surface with subtle cyan/blue tint */
 [data-theme="dark"] .key-group-control,
 [data-theme="dark"] .key-group-modifier {
-  background: rgba(6, 182, 212, 0.12);
-  border-color: rgba(6, 182, 212, 0.28);
-  color: #67e8f9;
+  background: #17222A;
+  border-color: rgba(6, 182, 212, 0.22);
+  color: #A5F3FC;
 }
 
 [data-theme="dark"] .key-group-control .key-label-primary,
 [data-theme="dark"] .key-group-modifier .key-label-primary {
-  color: #67e8f9;
+  color: #A5F3FC;
 }
 
+/* 4. Spacebar: dark neutral slate surface */
 [data-theme="dark"] .key-group-space {
-  background: rgba(100, 116, 139, 0.14);
-  border-color: rgba(100, 116, 139, 0.28);
+  background: #1E222A;
+  border-color: rgba(148, 163, 184, 0.22);
 }
 
 [data-theme="dark"] .key-group-space .key-label-primary {
-  color: #94a3b8;
+  color: #94A3B8;
 }
 
 /* Dynamic Key States */
@@ -4356,17 +4382,6 @@ a:hover {
   color: var(--text-primary);
 }
 
-[data-theme="dark"] .keyboard-key {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border-color: var(--border-subtle);
-}
-
-[data-theme="dark"] .key-group-control,
-[data-theme="dark"] .key-group-modifier {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-}
 
 [data-theme="dark"] .keyboard-status-indicator,
 [data-theme="dark"] .btn-keyboard-action,
