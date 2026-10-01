@@ -2,7 +2,7 @@
  * Core type definitions for the Typing Platform Engine
  */
 
-export type CharacterState = 'untyped' | 'correct' | 'incorrect';
+export type CharacterState = 'untyped' | 'correct' | 'incorrect' | 'corrected';
 
 export type TypingLanguage = 'en' | 'hi';
 
@@ -11,6 +11,7 @@ export interface CharacterItem {
   state: CharacterState;
   typedChar?: string;
   pendingComposition?: string;
+  hadMistake?: boolean;
 }
 
 export interface ExtraCharacterItem {

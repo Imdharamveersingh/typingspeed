@@ -24,6 +24,7 @@ export interface TypingAnalytics {
   mostMistypedCharacters: MistypedCharacter[];
   mistakeDetails: CharacterMismatch[];
   hasMistakes: boolean;
+  correctedCharacters?: number;
 }
 
 /**
@@ -51,12 +52,16 @@ export function analyzeTypingResult(
 
   let correctCharacters = 0;
   let incorrectCharacters = 0;
+  let correctedCharacters = 0;
 
   // Analyze characters in the passage traversed by user
   for (let i = 0; i < state.currentIndex; i++) {
     const item = state.characters[i];
     if (item.state === 'correct') {
       correctCharacters++;
+    } else if (item.state === 'corrected') {
+      correctCharacters++;
+      correctedCharacters++;
     } else if (item.state === 'incorrect') {
       incorrectCharacters++;
 
@@ -128,5 +133,6 @@ export function analyzeTypingResult(
     mostMistypedCharacters,
     mistakeDetails,
     hasMistakes,
+    correctedCharacters,
   };
 }

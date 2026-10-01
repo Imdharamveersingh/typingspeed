@@ -75,10 +75,10 @@ describe('Typing Latency Architecture & Regression Verification', () => {
     expect(state.currentIndex).toBe(0);
     expect(state.characters[0].state).toBe('untyped');
 
-    // Retype correctly
+    // Retype correctly (becomes corrected after previous mistake)
     state = processKeystroke(state, 'T', 1100);
     expect(state.currentIndex).toBe(1);
-    expect(state.characters[0].state).toBe('correct');
+    expect(state.characters[0].state).toBe('corrected');
   });
 
   it('6. line transition preserves state without test regeneration', () => {

@@ -183,11 +183,13 @@ export function processKeystroke(
     // Move caret backward and reset the character to untyped
     const prevIndex = state.currentIndex - 1;
     const updatedCharacters = [...state.characters];
+    const prevChar = updatedCharacters[prevIndex];
     updatedCharacters[prevIndex] = {
-      char: updatedCharacters[prevIndex].char,
+      char: prevChar.char,
       state: 'untyped',
       typedChar: undefined,
       pendingComposition: undefined,
+      hadMistake: prevChar.hadMistake,
     };
 
     const isTargetMode = state.testType === 'words' || state.testType === 'characters';
@@ -237,12 +239,14 @@ export function processKeystroke(
 
     // Check exact normalized grapheme match
     if (compareGraphemes(expectedChar, candidate)) {
+      const wasMistake = Boolean(currentItem.hadMistake);
       const updatedCharacters = [...state.characters];
       updatedCharacters[state.currentIndex] = {
         char: expectedChar,
-        state: 'correct',
+        state: wasMistake ? 'corrected' : 'correct',
         typedChar: candidate,
         pendingComposition: undefined,
+        hadMistake: wasMistake,
       };
 
       const nextIndex = state.currentIndex + 1;
@@ -272,6 +276,7 @@ export function processKeystroke(
         state: 'untyped',
         typedChar: candidate,
         pendingComposition: candidate,
+        hadMistake: currentItem.hadMistake,
       };
 
       return {
@@ -297,6 +302,7 @@ export function processKeystroke(
           state: 'incorrect',
           typedChar: pending,
           pendingComposition: undefined,
+          hadMistake: true,
         };
 
         const intermediateState: TypingState = {
@@ -323,6 +329,7 @@ export function processKeystroke(
       state: 'incorrect',
       typedChar: candidate,
       pendingComposition: undefined,
+      hadMistake: true,
     };
 
     const nextIndex = state.currentIndex + 1;
@@ -440,7 +447,7 @@ export function calculateCurrentMetrics(
   let incorrectCharacters = 0;
 
   for (let i = 0; i < state.currentIndex; i++) {
-    if (characters[i].state === 'correct') {
+    if (characters[i].state === 'correct' || characters[i].state === 'corrected') {
       correctCharacters++;
     } else if (characters[i].state === 'incorrect') {
       incorrectCharacters++;

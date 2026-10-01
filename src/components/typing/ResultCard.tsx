@@ -184,6 +184,25 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         )}
       </div>
 
+      {/* Typing Accuracy Legend (Always Visible near Mistake Diagnostics) */}
+      <div className="accuracy-legend-box" data-testid="typing-accuracy-legend">
+        <span className="legend-title">Typing Accuracy Legend</span>
+        <div className="legend-items">
+          <span className="legend-item" title="Uncorrected mistake">
+            <span className="legend-dot legend-dot-incorrect" aria-hidden="true" />
+            <span className="legend-label">Incorrect</span>
+          </span>
+          <span className="legend-item" title="Mistake corrected using Backspace">
+            <span className="legend-dot legend-dot-corrected" aria-hidden="true" />
+            <span className="legend-label">Corrected</span>
+          </span>
+          <span className="legend-item" title="Typed correctly on first attempt">
+            <span className="legend-dot legend-dot-correct" aria-hidden="true" />
+            <span className="legend-label">Correct</span>
+          </span>
+        </div>
+      </div>
+
       {/* TIER 4: ACTION HIERARCHY (One Dominant Primary Action) */}
       <div className="result-cta-group">
         {hasPracticeData ? (

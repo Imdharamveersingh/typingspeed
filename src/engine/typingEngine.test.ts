@@ -111,10 +111,10 @@ describe('Typing Engine Core', () => {
       expect(state.characters[0].state).toBe('untyped');
       expect(state.characters[0].typedChar).toBeUndefined();
 
-      // Now correctly re-type 'T'
+      // Now correctly re-type 'T' (corrected after previous mistake)
       state = processKeystroke(state, 'T', 1200);
       expect(state.currentIndex).toBe(1);
-      expect(state.characters[0].state).toBe('correct');
+      expect(state.characters[0].state).toBe('corrected');
     });
 
     it('pops extra characters with backspace first when extra characters exist', () => {

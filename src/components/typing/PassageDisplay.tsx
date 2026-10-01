@@ -60,6 +60,8 @@ const WordComponent = React.memo(
         stateClass = 'char-correct';
       } else if (item.state === 'incorrect') {
         stateClass = 'char-incorrect';
+      } else if (item.state === 'corrected') {
+        stateClass = 'char-corrected';
       }
 
       chars.push(
@@ -127,6 +129,8 @@ const SpaceComponent = React.memo(
       stateClass = 'char-correct';
     } else if (item.state === 'incorrect') {
       stateClass = 'char-incorrect';
+    } else if (item.state === 'corrected') {
+      stateClass = 'char-corrected';
     }
 
     return (
