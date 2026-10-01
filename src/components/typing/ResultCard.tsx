@@ -80,12 +80,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
   return (
     <div className="result-card" role="region" aria-label="Test Results Summary">
-      {/* Top Header Badge & Language Badge */}
-      <div className="result-top-badges">
-        <span className="brand-badge">
-          {testMode === 'exam' && examProfile ? `${examProfile.shortName} Practice Complete` : 'Test Complete'}
-        </span>
-        {state.passage.language === 'hi' && (
+      {/* Optional Language Badge for Hindi */}
+      {state.passage.language === 'hi' && (
+        <div className="result-top-badges">
           <span
             className="brand-badge"
             style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)' }}
@@ -93,8 +90,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           >
             हिंदी (Hindi)
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Exam Practice Simulation Evaluation Banner (if in exam mode) */}
       {examEvaluation && (
@@ -184,24 +181,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         )}
       </div>
 
-      {/* Typing Accuracy Legend (Always Visible near Mistake Diagnostics) */}
-      <div className="accuracy-legend-box" data-testid="typing-accuracy-legend">
-        <span className="legend-title">Typing Accuracy Legend</span>
-        <div className="legend-items">
-          <span className="legend-item" title="Uncorrected mistake">
-            <span className="legend-dot legend-dot-incorrect" aria-hidden="true" />
-            <span className="legend-label">Incorrect</span>
-          </span>
-          <span className="legend-item" title="Mistake corrected using Backspace">
-            <span className="legend-dot legend-dot-corrected" aria-hidden="true" />
-            <span className="legend-label">Corrected</span>
-          </span>
-          <span className="legend-item" title="Typed correctly on first attempt">
-            <span className="legend-dot legend-dot-correct" aria-hidden="true" />
-            <span className="legend-label">Correct</span>
-          </span>
-        </div>
-      </div>
 
       {/* TIER 4: ACTION HIERARCHY (One Dominant Primary Action) */}
       <div className="result-cta-group">

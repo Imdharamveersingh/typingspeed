@@ -426,9 +426,10 @@ describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () 
         })
       );
 
-      // Result summary visible
+      // Result summary visible as hero without Test Complete badge or Accuracy Legend
       expect(html).toContain('result-card');
-      expect(html).toContain('Test Complete');
+      expect(html).not.toContain('Test Complete');
+      expect(html).not.toContain('typing-accuracy-legend');
 
       // Practice My Mistakes visible as primary CTA
       expect(html).toContain('Practice My Mistakes');

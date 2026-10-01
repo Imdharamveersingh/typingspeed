@@ -158,8 +158,8 @@ describe('Corrected Typing Mistake Visual State + Result Legend', () => {
     });
   });
 
-  // 8. Result screen contains the "Corrected" legend
-  it('8. Result screen renders the Typing Accuracy Legend with "Corrected" text', () => {
+  // 8. Result screen does not render Typing Accuracy Legend or Test Complete badge
+  it('8. Result screen does not render Typing Accuracy Legend or Test Complete badge', () => {
     let state = createInitialState(mockPassage, 60);
     // Type 'T', 'x', backspace, 'h', 'e'
     state = processKeystroke(state, 'T', 1000);
@@ -184,15 +184,15 @@ describe('Corrected Typing Mistake Visual State + Result Legend', () => {
       })
     );
 
-    // Must contain legend box and "Corrected" indicator
-    expect(html).toContain('typing-accuracy-legend');
-    expect(html).toContain('Typing Accuracy Legend');
-    expect(html).toContain('Corrected');
-    expect(html).toContain('Incorrect');
-    expect(html).toContain('Correct');
-    expect(html).toContain('legend-dot-corrected');
-    expect(html).toContain('legend-dot-incorrect');
-    expect(html).toContain('legend-dot-correct');
+    // Must NOT contain legend box or removed labels
+    expect(html).not.toContain('typing-accuracy-legend');
+    expect(html).not.toContain('Typing Accuracy Legend');
+    expect(html).not.toContain('Test Complete');
+
+    // Result summary and actions must be present as the hero
+    expect(html).toContain('result-headline-wpm');
+    expect(html).toContain('result-headline-card');
+    expect(html).toContain('test-again-btn');
   });
 
   // 9. Existing keyboard heatmap tests continue passing & mistake recording
