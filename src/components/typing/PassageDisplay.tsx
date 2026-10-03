@@ -23,6 +23,10 @@ interface PassageDisplayProps {
   status: TestStatus;
   isFocused: boolean;
   language?: TypingLanguage;
+  fontFamily?: 'default' | 'mono' | 'sans';
+  whitespaceStyle?: 'normal' | 'bar' | 'bullet';
+  cursorShape?: 'underline' | 'line' | 'block' | 'box';
+  cursorMovement?: 'smooth' | 'jumping';
   inputRef: React.RefObject<HTMLInputElement | null>;
   onContainerClick: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -115,6 +119,7 @@ interface SpaceComponentProps {
   index: number;
   isCurrent: boolean;
   caretRef: React.RefObject<HTMLSpanElement | null>;
+  whitespaceStyle?: 'normal' | 'bar' | 'bullet';
 }
 
 const SpaceComponent = React.memo(
@@ -123,6 +128,7 @@ const SpaceComponent = React.memo(
     index,
     isCurrent,
     caretRef,
+    whitespaceStyle = 'normal',
   }: SpaceComponentProps) {
     let stateClass = 'char-untyped';
     if (item.state === 'correct') {
@@ -133,16 +139,27 @@ const SpaceComponent = React.memo(
       stateClass = 'char-corrected';
     }
 
+    const displayChar =
+      whitespaceStyle === 'bar'
+        ? '␣'
+        : whitespaceStyle === 'bullet'
+        ? '·'
+        : item.char;
+
     return (
-      <span className={`char ${stateClass}`} data-char-index={index}>
+      <span
+        className={`char char-space ${stateClass} ${whitespaceStyle !== 'normal' ? 'char-space-visible' : ''}`}
+        data-char-index={index}
+      >
         {isCurrent && <span className="caret-cursor" ref={caretRef} />}
-        {item.char}
+        {displayChar}
       </span>
     );
   },
   (prev, next) =>
     prev.item === next.item &&
-    prev.isCurrent === next.isCurrent
+    prev.isCurrent === next.isCurrent &&
+    prev.whitespaceStyle === next.whitespaceStyle
 );
 
 /**
@@ -182,6 +199,10 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
   status,
   isFocused,
   language = 'en',
+  fontFamily = 'default',
+  whitespaceStyle = 'normal',
+  cursorShape = 'underline',
+  cursorMovement = 'smooth',
   inputRef,
   onContainerClick,
   onKeyDown,
@@ -384,7 +405,7 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
       <div className={`passage-scroll-viewport ${isHindi ? 'lang-hi' : ''}`} ref={viewportRef}>
         <div
           ref={textContainerRef}
-          className={`passage-text ${isHindi ? 'lang-hi' : ''}`}
+          className={`passage-text ${isHindi ? 'lang-hi' : ''} font-${fontFamily} cursor-shape-${cursorShape} cursor-movement-${cursorMovement}`}
           style={{
             transform: `translateY(-${lineOffsetPx}px)`,
             transition: 'transform 140ms ease-out',
@@ -411,6 +432,7 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
                 index={token.index}
                 isCurrent={token.index === currentIndex && !isCompleted}
                 caretRef={caretRef}
+                whitespaceStyle={whitespaceStyle}
               />
             );
           })}

@@ -19,6 +19,8 @@ import { formatDuration } from '@/utils/metrics';
 import VirtualKeyboard from '@/components/keyboard/VirtualKeyboard';
 import { generateTestPassage, TestDifficulty, TestType } from '@/engine/passageGenerator';
 import { getCompletedWordCount } from '@/engine/typingEngine';
+import SettingsModal from '@/components/settings/SettingsModal';
+import { loadTypingSettings, saveTypingSettings, TypingSettings } from '@/engine/settingsTypes';
 
 export interface TypingTestProps {
   initialTestMode?: 'standard' | 'exam';
@@ -26,6 +28,8 @@ export interface TypingTestProps {
 }
 
 const DURATIONS: { label: string; value: TestDuration }[] = [
+  { label: '15s', value: 15 },
+  { label: '30s', value: 30 },
   { label: '60s', value: 60 },
   { label: '3m', value: 180 },
   { label: '5m', value: 300 },
@@ -67,8 +71,8 @@ const ExamActiveBar = React.memo(function ExamActiveBar({
 
 interface TestToolbarProps {
   toolbarRef: React.RefObject<HTMLDivElement | null>;
-  activeDropdown: 'target' | 'type' | 'language' | 'difficulty' | 'settings' | null;
-  setActiveDropdown: React.Dispatch<React.SetStateAction<'target' | 'type' | 'language' | 'difficulty' | 'settings' | null>>;
+  activeDropdown: 'target' | 'type' | 'language' | 'difficulty' | null;
+  setActiveDropdown: React.Dispatch<React.SetStateAction<'target' | 'type' | 'language' | 'difficulty' | null>>;
   isRunning: boolean;
   testMode: 'standard' | 'exam';
   testType: TestType;
@@ -83,6 +87,7 @@ interface TestToolbarProps {
   selectedDifficulty: TestDifficulty;
   duration: TestDuration;
   showKeyboard: boolean;
+  onOpenSettings: () => void;
   onToggleKeyboard: () => void;
   onSelectTestType: (type: TestType) => void;
   onSelectExamProfile: (p: ExamProfile) => void;
@@ -116,8 +121,9 @@ const TestToolbar = React.memo(function TestToolbar({
   selectedCharTarget,
   selectedDifficulty,
   duration,
-  showKeyboard,
-  onToggleKeyboard,
+  showKeyboard: _showKeyboard,
+  onOpenSettings,
+  onToggleKeyboard: _onToggleKeyboard,
   onSelectTestType,
   onSelectExamProfile,
   onSelectDuration,
@@ -131,7 +137,7 @@ const TestToolbar = React.memo(function TestToolbar({
 }: TestToolbarProps) {
   return (
     <div className="test-compact-toolbar" ref={toolbarRef} role="toolbar" aria-label="Test configuration">
-      {/* 1. Test Type Control (Time | Words | Characters) — FIRST */}
+      {/* 1. Test Type Control (Time | Words | Paragraph | Characters) — FIRST */}
       <div className="toolbar-pill-wrapper" data-testid="test-type-selector">
         <button
           type="button"
@@ -159,7 +165,7 @@ const TestToolbar = React.memo(function TestToolbar({
             >
               <div>
                 <div className="item-title">Time Test</div>
-                <div className="item-subtitle">Timed speed challenge (60s, 3m, 5m, 10m)</div>
+                <div className="item-subtitle">Timed speed challenge (15s, 30s, 60s, 3m, 5m, 10m)</div>
               </div>
               {testMode === 'standard' && testType === 'time' && <span className="item-check">✓</span>}
             </button>
@@ -176,6 +182,20 @@ const TestToolbar = React.memo(function TestToolbar({
                 <div className="item-subtitle">Fixed target word count (25, 50, 100, 250, 500)</div>
               </div>
               {testMode === 'standard' && testType === 'words' && <span className="item-check">✓</span>}
+            </button>
+
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="type-paragraph-btn"
+              className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'paragraph' ? 'selected' : ''}`}
+              onClick={() => onSelectTestType('paragraph')}
+            >
+              <div>
+                <div className="item-title">Paragraph Test</div>
+                <div className="item-subtitle">Continuous everyday readable paragraph</div>
+              </div>
+              {testMode === 'standard' && testType === 'paragraph' && <span className="item-check">✓</span>}
             </button>
 
             <button
@@ -237,7 +257,7 @@ const TestToolbar = React.memo(function TestToolbar({
 
         {activeDropdown === 'target' && testMode !== 'exam' && (
           <div className="toolbar-dropdown" role="menu">
-            {testType === 'time' &&
+            {(testType === 'time' || testType === 'paragraph') &&
               DURATIONS.map((d) => (
                 <button
                   key={d.value}
@@ -358,43 +378,18 @@ const TestToolbar = React.memo(function TestToolbar({
         )}
       </div>
 
-      {/* 5. Settings Control Popover with Virtual Keyboard toggle */}
+      {/* 5. Settings Control — opens large modal */}
       <div className="toolbar-pill-wrapper" data-testid="settings-selector">
         <button
           type="button"
-          className={`toolbar-pill toolbar-pill-settings ${activeDropdown === 'settings' ? 'active' : ''}`}
+          className="toolbar-pill toolbar-pill-settings"
           data-testid="settings-btn"
-          onClick={() => setActiveDropdown((prev) => (prev === 'settings' ? null : 'settings'))}
-          aria-haspopup="true"
-          aria-expanded={activeDropdown === 'settings'}
-          title="Settings"
+          onClick={onOpenSettings}
+          title="Open Settings"
+          aria-haspopup="dialog"
         >
           <span className="control-value">⚙ Settings</span>
-          <span className="pill-arrow" aria-hidden="true">▾</span>
         </button>
-
-        {activeDropdown === 'settings' && (
-          <div className="toolbar-dropdown toolbar-dropdown-settings" role="menu">
-            <div className="dropdown-section-title">Settings</div>
-            <div className="settings-toggle-row">
-              <span className="settings-toggle-label">Virtual Keyboard</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={showKeyboard}
-                data-testid="toggle-keyboard-btn"
-                className={`settings-switch-btn ${showKeyboard ? 'is-on' : 'is-off'}`}
-                onClick={onToggleKeyboard}
-                title={showKeyboard ? 'Hide virtual keyboard' : 'Show virtual keyboard'}
-              >
-                <span className="switch-pill">
-                  <span className="switch-dot" />
-                </span>
-                <span className="switch-status">{showKeyboard ? 'ON' : 'OFF'}</span>
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 6. Retest Button */}
@@ -446,31 +441,30 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [selectedWordTarget, setSelectedWordTarget] = useState<number>(50);
   const [selectedCharTarget, setSelectedCharTarget] = useState<number>(250);
   const [selectedExamProfile, setSelectedExamProfile] = useState<ExamProfile>(getDefaultExamProfile());
-  const [activeDropdown, setActiveDropdown] = useState<'target' | 'type' | 'language' | 'difficulty' | 'settings' | null>(null);
-  const [showKeyboard, setShowKeyboard] = useState<boolean>(false);
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const examProfiles = useMemo(() => getAllExamProfiles(), []);
-
-  // Restore keyboard visibility preference on mount
-  useEffect(() => {
+  const [activeDropdown, setActiveDropdown] = useState<'target' | 'type' | 'language' | 'difficulty' | null>(null);
+  const [settings, setSettings] = useState<TypingSettings>(() => loadTypingSettings());
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [showKeyboard, setShowKeyboard] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('typing_platform_keyboard_visible');
-      if (saved !== null) {
-        setShowKeyboard(saved === 'true');
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }, []);
+      if (saved !== null) return saved === 'true';
+    } catch {}
+    return false;
+  });
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const examProfiles = useMemo(() => getAllExamProfiles(), []);
 
   const handleToggleKeyboard = useCallback(() => {
     setShowKeyboard((prev) => {
       const next = !prev;
       try {
         localStorage.setItem('typing_platform_keyboard_visible', String(next));
-      } catch {
-        // Ignore storage errors
-      }
+      } catch {}
+      setSettings((current) => {
+        const updated = { ...current, keyboardVisible: next };
+        saveTypingSettings(updated);
+        return updated;
+      });
       return next;
     });
   }, []);
@@ -500,15 +494,38 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     if (initialTestMode === 'exam') {
       return PASSAGES.find((p) => p.id === defaultExam.passageId) || DEFAULT_PASSAGE;
     }
+    const s = loadTypingSettings();
     return generateTestPassage({
-      language: 'en',
+      language: s.language || 'en',
       difficulty: 'medium',
       testType: 'time',
       targetCount: 60,
+      textSource: s.textSource,
+      includeCapitalLetters: s.includeCapitalLetters,
+      includeSpecialCharacters: s.includeSpecialCharacters,
+      wordListSize: s.wordListSize,
     });
   }, [initialTestMode, defaultExam]);
 
   const initialDurationForMode = initialTestMode === 'exam' ? defaultExam.duration : 60;
+
+  const engineOptions = useMemo(
+    () => ({
+      stopOnError: settings.stopOnError,
+      forgiveErrors: settings.forgiveErrors,
+      spaceSkipsWord: settings.spaceSkipsWord,
+    }),
+    [settings.stopOnError, settings.forgiveErrors, settings.spaceSkipsWord]
+  );
+
+  const soundOptions = useMemo(
+    () => ({
+      mode: settings.soundMode,
+      volume: settings.soundVolume,
+      theme: settings.soundTheme,
+    }),
+    [settings.soundMode, settings.soundVolume, settings.soundTheme]
+  );
 
   const {
     state,
@@ -534,11 +551,103 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     initialPassage: initialPassageForMode,
     initialDuration: initialDurationForMode,
     initialTestType: 'time',
+    engineOptions,
+    soundOptions,
   });
 
+  const createPassage = useCallback(
+    (opts: {
+      language?: TypingLanguage;
+      difficulty?: TestDifficulty;
+      testType?: TestType;
+      targetCount?: number;
+    }) => {
+      return generateTestPassage({
+        language: opts.language ?? selectedLanguage,
+        difficulty: opts.difficulty ?? selectedDifficulty,
+        testType: opts.testType ?? testType,
+        targetCount:
+          opts.targetCount ??
+          (testType === 'words'
+            ? selectedWordTarget
+            : testType === 'characters'
+            ? selectedCharTarget
+            : state.duration),
+        textSource: settings.textSource,
+        includeCapitalLetters: settings.includeCapitalLetters,
+        includeSpecialCharacters: settings.includeSpecialCharacters,
+        wordListSize: settings.wordListSize,
+      });
+    },
+    [selectedLanguage, selectedDifficulty, testType, selectedWordTarget, selectedCharTarget, state.duration, settings]
+  );
+
+  const handleUpdateSettings = useCallback(
+    (newSettings: Partial<TypingSettings>) => {
+      setSettings((prev) => {
+        const updated = { ...prev, ...newSettings };
+        saveTypingSettings(updated);
+
+        if (newSettings.keyboardVisible !== undefined) {
+          setShowKeyboard(newSettings.keyboardVisible);
+        }
+
+        if (
+          newSettings.language !== undefined &&
+          newSettings.language !== selectedLanguage &&
+          state.status !== 'running' &&
+          testMode !== 'exam'
+        ) {
+          setSelectedLanguage(newSettings.language);
+        }
+
+        // If test is idle (not running/completed) and not exam mode, regenerate passage with new settings immediately
+        if (state.status === 'idle' && testMode !== 'exam') {
+          const target =
+            testType === 'words'
+              ? selectedWordTarget
+              : testType === 'characters'
+              ? selectedCharTarget
+              : state.duration;
+
+          const newPassage = generateTestPassage({
+            language: newSettings.language || updated.language || selectedLanguage,
+            difficulty: selectedDifficulty,
+            testType,
+            targetCount: target,
+            textSource: updated.textSource,
+            includeCapitalLetters: updated.includeCapitalLetters,
+            includeSpecialCharacters: updated.includeSpecialCharacters,
+            wordListSize: updated.wordListSize,
+          });
+
+          setPassage(newPassage, testType, target);
+        }
+
+        return updated;
+      });
+    },
+    [selectedLanguage, state.status, state.duration, testMode, testType, selectedWordTarget, selectedCharTarget, selectedDifficulty, setPassage]
+  );
+
   const handleRetest = useCallback(() => {
+    if (testMode === 'standard') {
+      const target =
+        testType === 'words'
+          ? selectedWordTarget
+          : testType === 'characters'
+          ? selectedCharTarget
+          : state.duration;
+      const newPassage = createPassage({
+        language: selectedLanguage,
+        difficulty: selectedDifficulty,
+        testType,
+        targetCount: target,
+      });
+      setPassage(newPassage, testType, target);
+    }
     restart();
-  }, [restart]);
+  }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, createPassage, selectedLanguage, selectedDifficulty, setPassage, restart]);
 
   const handleSelectLanguage = useCallback((lang: TypingLanguage) => {
     if (lang === selectedLanguage || state.status === 'running') return;
@@ -553,7 +662,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         : testType === 'characters'
         ? selectedCharTarget
         : state.duration;
-    const newPassage = generateTestPassage({
+    const newPassage = createPassage({
       language: lang,
       difficulty: selectedDifficulty,
       testType,
@@ -562,7 +671,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, testType, target);
     setActiveDropdown(null);
     restart();
-  }, [selectedLanguage, state.status, state.duration, testMode, testType, selectedWordTarget, selectedCharTarget, selectedDifficulty, setPassage, restart]);
+  }, [selectedLanguage, state.status, state.duration, testMode, testType, selectedWordTarget, selectedCharTarget, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectDifficulty = useCallback((diff: TestDifficulty) => {
     setSelectedDifficulty(diff);
@@ -576,7 +685,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         : testType === 'characters'
         ? selectedCharTarget
         : state.duration;
-    const newPassage = generateTestPassage({
+    const newPassage = createPassage({
       language: selectedLanguage,
       difficulty: diff,
       testType,
@@ -585,7 +694,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, testType, target);
     setActiveDropdown(null);
     restart();
-  }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, setPassage, restart]);
+  }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, createPassage, setPassage, restart]);
 
   const handleSelectTestType = useCallback((type: TestType) => {
     if (testMode === 'exam') {
@@ -599,7 +708,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         : type === 'characters'
         ? selectedCharTarget
         : state.duration;
-    const newPassage = generateTestPassage({
+    const newPassage = createPassage({
       language: selectedLanguage,
       difficulty: selectedDifficulty,
       testType: type,
@@ -608,14 +717,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, type, target);
     setActiveDropdown(null);
     restart();
-  }, [testMode, setTestType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, selectedDifficulty, setPassage, restart]);
+  }, [testMode, setTestType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectStandardMode = useCallback(() => {
     setTestMode('standard');
     setTestTypeState('time');
     setTestType('time');
     setDuration(60);
-    const newPassage = generateTestPassage({
+    const newPassage = createPassage({
       language: selectedLanguage,
       difficulty: selectedDifficulty,
       testType: 'time',
@@ -624,7 +733,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'time', 60);
     setActiveDropdown(null);
     restart();
-  }, [setTestType, setDuration, selectedLanguage, selectedDifficulty, setPassage, restart]);
+  }, [setTestType, setDuration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectExamProfile = useCallback((profile: ExamProfile) => {
     setTestMode('exam');
@@ -642,7 +751,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setTestTypeState('time');
     setTestType('time', dur);
     setDuration(dur);
-    const newPassage = generateTestPassage({
+    const newPassage = createPassage({
       language: selectedLanguage,
       difficulty: selectedDifficulty,
       testType: 'time',
@@ -651,13 +760,13 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'time', dur);
     setActiveDropdown(null);
     restart();
-  }, [setTestType, setDuration, selectedLanguage, selectedDifficulty, setPassage, restart]);
+  }, [setTestType, setDuration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectWordTarget = useCallback((words: number) => {
     setSelectedWordTarget(words);
     setTestTypeState('words');
     setTestType('words', words);
-    const newPassage = generateTestPassage({
+    const newPassage = createPassage({
       language: selectedLanguage,
       difficulty: selectedDifficulty,
       testType: 'words',
@@ -666,13 +775,13 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'words', words);
     setActiveDropdown(null);
     restart();
-  }, [selectedLanguage, selectedDifficulty, setTestType, setPassage, restart]);
+  }, [selectedLanguage, selectedDifficulty, setTestType, createPassage, setPassage, restart]);
 
   const handleSelectCharTarget = useCallback((chars: number) => {
     setSelectedCharTarget(chars);
     setTestTypeState('characters');
     setTestType('characters', chars);
-    const newPassage = generateTestPassage({
+    const newPassage = createPassage({
       language: selectedLanguage,
       difficulty: selectedDifficulty,
       testType: 'characters',
@@ -681,7 +790,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'characters', chars);
     setActiveDropdown(null);
     restart();
-  }, [selectedLanguage, selectedDifficulty, setTestType, setPassage, restart]);
+  }, [selectedLanguage, selectedDifficulty, setTestType, createPassage, setPassage, restart]);
 
   // Focus typing area on mount if in test mode
   useEffect(() => {
@@ -769,6 +878,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
   const testTypeLabel = useMemo(() => {
     if (testMode === 'exam') return `Exam (${selectedExamProfile.shortName})`;
+    if (effectiveTestType === 'paragraph') return 'Paragraph';
     if (effectiveTestType === 'words') return 'Words';
     if (effectiveTestType === 'characters') return 'Characters';
     return 'Time';
@@ -834,6 +944,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           selectedDifficulty={selectedDifficulty}
           duration={state.duration}
           showKeyboard={showKeyboard}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           onToggleKeyboard={handleToggleKeyboard}
           onSelectTestType={handleSelectTestType}
           onSelectExamProfile={handleSelectExamProfile}
@@ -897,6 +1008,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             status={state.status}
             isFocused={isFocused}
             language={state.passage.language}
+            fontFamily={settings.fontFamily}
+            whitespaceStyle={settings.whitespaceStyle}
+            cursorShape={settings.cursorShape}
+            cursorMovement={settings.cursorMovement}
             inputRef={inputRef}
             onContainerClick={focusTypingArea}
             onKeyDown={handleKeyDown}
@@ -949,6 +1064,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           )}
         </div>
       )}
+
+      {/* Large SaaS Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onUpdateSettings={handleUpdateSettings}
+      />
     </section>
   );
 };

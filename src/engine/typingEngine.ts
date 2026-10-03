@@ -121,16 +121,26 @@ export function createInitialState(
   };
 }
 
+export interface TypingEngineOptions {
+  stopOnError?: boolean;
+  forgiveErrors?: boolean;
+  spaceSkipsWord?: boolean;
+}
+
 /**
  * Pure state reducer processing a single keystroke or character input event.
  */
 export function processKeystroke(
   initialState: TypingState,
   key: string,
-  timestamp: number
+  timestamp: number,
+  options: TypingEngineOptions = {}
 ): TypingState {
   // If test is completed, reject any further typing except Backspace in target modes
-  const isTargetMode = initialState.testType === 'words' || initialState.testType === 'characters';
+  const isTargetMode =
+    initialState.testType === 'words' ||
+    initialState.testType === 'characters' ||
+    initialState.testType === 'paragraph';
   if (initialState.status === 'completed' && !(key === 'Backspace' && isTargetMode)) {
     return initialState;
   }
@@ -192,7 +202,10 @@ export function processKeystroke(
       hadMistake: prevChar.hadMistake,
     };
 
-    const isTargetMode = state.testType === 'words' || state.testType === 'characters';
+    const isTargetMode =
+      state.testType === 'words' ||
+      state.testType === 'characters' ||
+      state.testType === 'paragraph';
     const nextStatus = state.status === 'completed' && isTargetMode ? 'running' : state.status;
     const nextEndTime = state.status === 'completed' && isTargetMode ? null : state.endTime;
 
@@ -237,6 +250,52 @@ export function processKeystroke(
     const pending = currentItem.pendingComposition ?? '';
     const candidate = pending + key;
 
+    // Space Skips Word: if enabled, pressing Space while inside a word skips to the next word
+    if (
+      options.spaceSkipsWord &&
+      key === ' ' &&
+      currentItem.char !== ' '
+    ) {
+      let nextSpaceIdx = -1;
+      for (let i = state.currentIndex; i < state.characters.length; i++) {
+        if (state.characters[i].char === ' ') {
+          nextSpaceIdx = i;
+          break;
+        }
+      }
+      if (nextSpaceIdx !== -1) {
+        const updatedCharacters = [...state.characters];
+        let skippedMistakes = 0;
+        for (let i = state.currentIndex; i <= nextSpaceIdx; i++) {
+          updatedCharacters[i] = {
+            ...updatedCharacters[i],
+            state: 'incorrect',
+            hadMistake: true,
+          };
+          skippedMistakes++;
+        }
+        const nextIndex = nextSpaceIdx + 1;
+        const isTargetCompleted =
+          (state.testType === 'words' ||
+            state.testType === 'characters' ||
+            state.testType === 'paragraph') &&
+          nextIndex >= state.characters.length;
+
+        return {
+          ...state,
+          status: isTargetCompleted ? 'completed' : currentStatus,
+          startTime: currentStartTime,
+          endTime: isTargetCompleted ? timestamp : state.endTime,
+          characters: updatedCharacters,
+          currentIndex: nextIndex,
+          totalKeystrokes: updatedTotalKeystrokes,
+          incorrectStrokes: state.incorrectStrokes + skippedMistakes,
+          lastKeystrokeTime: timestamp,
+          accumulatedActiveTimeMs: newAccumulatedActiveMs,
+        };
+      }
+    }
+
     // Check exact normalized grapheme match
     if (compareGraphemes(expectedChar, candidate)) {
       const wasMistake = Boolean(currentItem.hadMistake);
@@ -251,7 +310,9 @@ export function processKeystroke(
 
       const nextIndex = state.currentIndex + 1;
       const isTargetCompleted =
-        (state.testType === 'words' || state.testType === 'characters') &&
+        (state.testType === 'words' ||
+          state.testType === 'characters' ||
+          state.testType === 'paragraph') &&
         nextIndex >= state.characters.length;
 
       return {
@@ -318,7 +379,7 @@ export function processKeystroke(
         };
 
         // Process the new key on the next position
-        return processKeystroke(intermediateState, key, timestamp);
+        return processKeystroke(intermediateState, key, timestamp, options);
       }
     }
 
@@ -332,9 +393,14 @@ export function processKeystroke(
       hadMistake: true,
     };
 
-    const nextIndex = state.currentIndex + 1;
+    // If stopOnError is enabled or forgiveErrors is explicitly false, cursor does not advance
+    const shouldStop = Boolean(options.stopOnError) || options.forgiveErrors === false;
+    const nextIndex = shouldStop ? state.currentIndex : state.currentIndex + 1;
     const isTargetCompleted =
-      (state.testType === 'words' || state.testType === 'characters') &&
+      !shouldStop &&
+      (state.testType === 'words' ||
+        state.testType === 'characters' ||
+        state.testType === 'paragraph') &&
       nextIndex >= state.characters.length;
 
     return {
@@ -371,7 +437,8 @@ export function processKeystroke(
 export function processInputText(
   state: TypingState,
   text: string,
-  timestamp: number
+  timestamp: number,
+  options: TypingEngineOptions = {}
 ): TypingState {
   if (!text || state.status === 'completed') {
     return state;
@@ -381,7 +448,7 @@ export function processInputText(
   let currentState = state;
 
   for (const grapheme of graphemes) {
-    currentState = processKeystroke(currentState, grapheme, timestamp);
+    currentState = processKeystroke(currentState, grapheme, timestamp, options);
   }
 
   return currentState;
@@ -399,8 +466,12 @@ export function tickTimer(
     return state;
   }
 
-  // In Words or Characters mode, test completion is determined by reaching the target
-  if (state.testType === 'words' || state.testType === 'characters') {
+  // In Words, Characters, or Paragraph mode, test completion is determined by reaching the target
+  if (
+    state.testType === 'words' ||
+    state.testType === 'characters' ||
+    state.testType === 'paragraph'
+  ) {
     return state;
   }
 
@@ -428,7 +499,8 @@ export function calculateCurrentMetrics(
 ): TypingMetrics {
   const { status, startTime, endTime, duration, totalKeystrokes, characters, extraCharacters, testType } = state;
 
-  const isCountMode = testType === 'words' || testType === 'characters';
+  const isCountMode =
+    testType === 'words' || testType === 'characters' || testType === 'paragraph';
   let elapsedSeconds: number = 0;
   let remainingSeconds: number = duration;
 

@@ -28,7 +28,11 @@ export function calculateProgressPercentage({
   targetProgress?: { current: number; total: number } | null;
 }): number {
   if (status === 'completed') {
-    if ((testType === 'words' || testType === 'characters') && targetProgress && targetProgress.total > 0) {
+    if (
+      (testType === 'words' || testType === 'characters' || testType === 'paragraph') &&
+      targetProgress &&
+      targetProgress.total > 0
+    ) {
       if (targetProgress.current < targetProgress.total) {
         return Math.min(100, Math.max(0, (targetProgress.current / targetProgress.total) * 100));
       }
@@ -47,7 +51,7 @@ export function calculateProgressPercentage({
     return Math.min(100, Math.max(0, rawPct));
   }
 
-  if (testType === 'characters') {
+  if (testType === 'characters' || testType === 'paragraph') {
     const current = targetProgress?.current ?? 0;
     const total = targetProgress?.total ?? 500;
     const rawPct = total > 0 ? (current / total) * 100 : 0;

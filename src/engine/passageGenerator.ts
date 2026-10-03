@@ -1,9 +1,11 @@
-import { CharacterItem, Passage, TypingLanguage, TypingState } from './types';
+import { CharacterItem, Passage, TestType, TypingLanguage, TypingState } from './types';
 import { PASSAGES } from '@/data/passages';
 import { HINDI_PASSAGES } from '@/data/hindiPassages';
 import { segmentGraphemes } from './textUtils';
+import { getWordListBySize } from '@/data/practiceWords';
+import { TextSourceOption, WordListSizeOption } from './settingsTypes';
 
-export type TestType = 'time' | 'words' | 'characters';
+export type { TestType };
 export type TestDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface GeneratePassageOptions {
@@ -11,6 +13,89 @@ export interface GeneratePassageOptions {
   difficulty: TestDifficulty;
   testType: TestType;
   targetCount?: number;
+  textSource?: TextSourceOption;
+  includeCapitalLetters?: boolean;
+  includeSpecialCharacters?: boolean;
+  wordListSize?: WordListSizeOption;
+}
+
+/**
+ * Curated continuous paragraph passages with high-frequency everyday vocabulary.
+ */
+export const EVERYDAY_PARAGRAPHS: string[] = [
+  'the people have time to make a good plan and work together to build a strong community where everyone can learn and grow with confidence each new day brings another chance to do something meaningful and help those around us succeed through patience and steady effort',
+  'reading books and writing stories allows us to understand different ways of thinking and see the world through new eyes when we take a few quiet moments to focus on our goals small daily habits can lead to great long term results for our family and friends',
+  'a walk through the quiet forest in the early morning helps clear the mind and restore energy ancient green trees shelter birds and gentle streams that flow downward toward the river bringing fresh water to the fields and towns along the wide valley',
+  'learning a new skill requires practice and patience rather than speed when you pay close attention to each movement your fingers and hands develop natural muscle memory that makes every action feel smooth and easy over time',
+  'working together with clear communication helps teams solve hard problems and achieve things that no single person could accomplish alone listening to each other and sharing ideas creates trust and makes the journey enjoyable for all',
+];
+
+/**
+ * Formats a text string according to user capital letter and special character preferences.
+ */
+export function formatPassageText(
+  text: string,
+  language: TypingLanguage,
+  includeCapitalLetters: boolean = false,
+  includeSpecialCharacters: boolean = false
+): string {
+  if (language === 'hi') {
+    return text.trim();
+  }
+
+  let formatted = text.trim();
+
+  // If special characters are off, remove punctuation symbols
+  if (!includeSpecialCharacters) {
+    formatted = formatted.replace(/[^a-zA-Z0-9\s]/g, '');
+    formatted = formatted.replace(/\s+/g, ' ').trim();
+  }
+
+  // If capital letters are off, make all letters lowercase
+  if (!includeCapitalLetters) {
+    formatted = formatted.toLowerCase();
+  }
+
+  return formatted;
+}
+
+/**
+ * Builds words from common words vocabulary pool with user options applied.
+ */
+function buildCommonWords(
+  wordCount: number,
+  wordListSize: WordListSizeOption = 'medium',
+  includeCapitalLetters: boolean = false,
+  includeSpecialCharacters: boolean = false
+): string[] {
+  const pool = getWordListBySize(wordListSize);
+  const words: string[] = [];
+
+  for (let i = 0; i < wordCount; i++) {
+    // Semi-random deterministic spread to provide variety without pure duplicates
+    const wordIndex = (i * 37 + (i % 7) * 13) % pool.length;
+    let word = pool[wordIndex].toLowerCase();
+
+    if (includeCapitalLetters) {
+      // Natural capitalization at the start of pseudo-sentences (every 7-9 words)
+      if (i % 8 === 0) {
+        word = word.charAt(0).toUpperCase() + word.slice(1);
+      }
+    }
+
+    if (includeSpecialCharacters) {
+      // Natural punctuation: period at pseudo-sentence ends, comma mid-sentence
+      if ((i + 1) % 8 === 0 && i !== wordCount - 1) {
+        word += '.';
+      } else if (i % 8 === 4) {
+        word += ',';
+      }
+    }
+
+    words.push(word);
+  }
+
+  return words;
 }
 
 /**
@@ -24,36 +109,80 @@ function getSourceTexts(language: TypingLanguage, difficulty: TestDifficulty): s
 }
 
 /**
- * Generates an appropriate Passage for Time, Words, or Characters mode.
+ * Generates an appropriate Passage for Time, Words, Paragraph, or Characters mode.
  */
 export function generateTestPassage({
   language,
   difficulty,
   testType,
   targetCount,
+  textSource = 'common',
+  includeCapitalLetters = false,
+  includeSpecialCharacters = false,
+  wordListSize = 'medium',
 }: GeneratePassageOptions): Passage {
-  const sources = getSourceTexts(language, difficulty);
+  const diffCapitalized = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 
-  if (testType === 'words') {
-    const targetWords = targetCount && targetCount > 0 ? targetCount : 50;
-    const allWords: string[] = [];
-
-    // Gather words from source texts
-    for (const text of sources) {
-      const words = text.split(/\s+/).filter(Boolean);
-      allWords.push(...words);
+  // 1. Paragraph Mode
+  if (testType === 'paragraph') {
+    let rawText = '';
+    if (language === 'hi') {
+      const sources = getSourceTexts('hi', difficulty);
+      rawText = sources[0] || 'अभ्यास और धैर्य से सफलता प्राप्त होती है।';
+    } else {
+      // Select an everyday readable paragraph
+      const pool = difficulty === 'hard' ? PASSAGES.map((p) => p.text) : EVERYDAY_PARAGRAPHS;
+      const idx = Math.floor(Math.random() * pool.length) % pool.length;
+      rawText = pool[idx] || EVERYDAY_PARAGRAPHS[0];
     }
 
-    // If pool has fewer words than requested, loop until fulfilled
-    const chosenWords: string[] = [];
-    let poolIndex = 0;
-    while (chosenWords.length < targetWords && allWords.length > 0) {
-      chosenWords.push(allWords[poolIndex % allWords.length]);
-      poolIndex++;
+    const formattedText = formatPassageText(
+      rawText,
+      language,
+      includeCapitalLetters,
+      includeSpecialCharacters
+    );
+
+    return {
+      id: `paragraph-${language}-${difficulty}-${Date.now()}`,
+      title: `${diffCapitalized} — Paragraph Test`,
+      text: formattedText,
+      language,
+      difficulty,
+    };
+  }
+
+  // 2. Words Mode
+  if (testType === 'words') {
+    const targetWords = targetCount && targetCount > 0 ? targetCount : 50;
+
+    let chosenWords: string[] = [];
+    if (language === 'en' && textSource === 'common') {
+      chosenWords = buildCommonWords(
+        targetWords,
+        wordListSize,
+        includeCapitalLetters,
+        includeSpecialCharacters
+      );
+    } else {
+      const sources = getSourceTexts(language, difficulty);
+      const allWords: string[] = [];
+      for (const text of sources) {
+        allWords.push(...text.split(/\s+/).filter(Boolean));
+      }
+      let poolIndex = 0;
+      while (chosenWords.length < targetWords && allWords.length > 0) {
+        chosenWords.push(allWords[poolIndex % allWords.length]);
+        poolIndex++;
+      }
+      if (language === 'en') {
+        chosenWords = chosenWords.map((w) =>
+          formatPassageText(w, language, includeCapitalLetters, includeSpecialCharacters)
+        ).filter(Boolean);
+      }
     }
 
     const generatedText = chosenWords.join(' ');
-    const diffCapitalized = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 
     return {
       id: `words-${language}-${difficulty}-${targetWords}`,
@@ -64,20 +193,27 @@ export function generateTestPassage({
     };
   }
 
+  // 3. Characters Mode
   if (testType === 'characters') {
     const targetChars = targetCount && targetCount > 0 ? targetCount : 250;
-    // Build a continuous stream of text from sources
+    const sources = getSourceTexts(language, difficulty);
     let combined = sources.join(' ');
-    let graphemes = segmentGraphemes(combined, language);
 
+    if (language === 'en') {
+      combined = formatPassageText(combined, language, includeCapitalLetters, includeSpecialCharacters);
+    }
+
+    let graphemes = segmentGraphemes(combined, language);
     while (graphemes.length < targetChars) {
       combined += ' ' + sources.join(' ');
+      if (language === 'en') {
+        combined = formatPassageText(combined, language, includeCapitalLetters, includeSpecialCharacters);
+      }
       graphemes = segmentGraphemes(combined, language);
     }
 
     const slicedGraphemes = graphemes.slice(0, targetChars);
     const generatedText = slicedGraphemes.join('');
-    const diffCapitalized = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 
     return {
       id: `chars-${language}-${difficulty}-${targetChars}`,
@@ -88,22 +224,36 @@ export function generateTestPassage({
     };
   }
 
-  // Default: Time mode — provide an abundant supply of text so user never runs out
+  // 4. Time Mode (Default: provides abundant supply of words)
   const targetWords = 1000;
-  const allWords: string[] = [];
-  for (const text of sources) {
-    allWords.push(...text.split(/\s+/).filter(Boolean));
-  }
+  let chosenWords: string[] = [];
 
-  const chosenWords: string[] = [];
-  let poolIndex = 0;
-  while (chosenWords.length < targetWords && allWords.length > 0) {
-    chosenWords.push(allWords[poolIndex % allWords.length]);
-    poolIndex++;
+  if (language === 'en' && textSource === 'common') {
+    chosenWords = buildCommonWords(
+      targetWords,
+      wordListSize,
+      includeCapitalLetters,
+      includeSpecialCharacters
+    );
+  } else {
+    const sources = getSourceTexts(language, difficulty);
+    const allWords: string[] = [];
+    for (const text of sources) {
+      allWords.push(...text.split(/\s+/).filter(Boolean));
+    }
+    let poolIndex = 0;
+    while (chosenWords.length < targetWords && allWords.length > 0) {
+      chosenWords.push(allWords[poolIndex % allWords.length]);
+      poolIndex++;
+    }
+    if (language === 'en') {
+      chosenWords = chosenWords.map((w) =>
+        formatPassageText(w, language, includeCapitalLetters, includeSpecialCharacters)
+      ).filter(Boolean);
+    }
   }
 
   const generatedText = chosenWords.join(' ');
-  const diffCapitalized = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 
   return {
     id: `time-${language}-${difficulty}`,
@@ -154,4 +304,3 @@ export function appendPassageContent(
     characters: [...state.characters, ...addedCharacters],
   };
 }
-

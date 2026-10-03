@@ -18,9 +18,9 @@ export interface ExtraCharacterItem {
   char: string;
 }
 
-export type TestType = 'time' | 'words' | 'characters';
+export type TestType = 'time' | 'words' | 'characters' | 'paragraph';
 
-export type TestDuration = 60 | 180 | 300 | 600 | 900; // 1, 3, 5, 10, 15 minutes in seconds
+export type TestDuration = 15 | 30 | 60 | 180 | 300 | 600 | 900; // 15s, 30s, 1m, 3m, 5m, 10m, 15m in seconds
 
 export type TestStatus = 'idle' | 'running' | 'completed';
 

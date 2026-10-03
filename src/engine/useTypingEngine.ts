@@ -13,14 +13,23 @@ import {
   createInitialState,
   processInputText,
   processKeystroke,
+  TypingEngineOptions,
 } from './typingEngine';
 import { isControlKey } from './textUtils';
+import { SoundMode, SoundTheme } from './settingsTypes';
+import { playKeystrokeSound } from '../utils/soundEffects';
 
 export interface UseTypingEngineProps {
   initialPassage: Passage;
   initialDuration?: TestDuration;
   initialTestType?: TestType;
   initialTargetCount?: number;
+  engineOptions?: TypingEngineOptions;
+  soundOptions?: {
+    mode: SoundMode;
+    volume: number;
+    theme?: SoundTheme;
+  };
 }
 
 export interface UseTypingEngineReturn {
@@ -51,6 +60,8 @@ export function useTypingEngine({
   initialDuration = 60,
   initialTestType = 'time',
   initialTargetCount,
+  engineOptions,
+  soundOptions,
 }: UseTypingEngineProps): UseTypingEngineReturn {
   const [state, setState] = useState<TypingState>(() =>
     createInitialState(initialPassage, initialDuration, initialTestType, initialTargetCount)
@@ -60,6 +71,14 @@ export function useTypingEngine({
   );
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [recentKey, setRecentKey] = useState<{ code?: string; status?: 'correct' | 'incorrect' } | null>(null);
+
+  const engineOptionsRef = useRef<TypingEngineOptions | undefined>(engineOptions);
+  const soundOptionsRef = useRef<UseTypingEngineProps['soundOptions']>(soundOptions);
+
+  useEffect(() => {
+    engineOptionsRef.current = engineOptions;
+    soundOptionsRef.current = soundOptions;
+  }, [engineOptions, soundOptions]);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const stateRef = useRef<TypingState>(state);
@@ -298,7 +317,7 @@ export function useTypingEngine({
           registerActiveKeystroke(now);
         }
         const current = stateRef.current;
-        const next = processKeystroke(current, 'Backspace', now);
+        const next = processKeystroke(current, 'Backspace', now, engineOptionsRef.current);
 
         setRecentKey({ code: 'Backspace', status: 'correct' });
         if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
@@ -321,10 +340,19 @@ export function useTypingEngine({
         const code = e.nativeEvent.code || e.code || e.key;
 
         const current = stateRef.current;
-        const next = processKeystroke(current, e.key, now);
+        const next = processKeystroke(current, e.key, now, engineOptionsRef.current);
 
         const status: 'correct' | 'incorrect' =
           next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+
+        if (soundOptionsRef.current) {
+          playKeystrokeSound(
+            status,
+            soundOptionsRef.current.mode,
+            soundOptionsRef.current.volume,
+            soundOptionsRef.current.theme
+          );
+        }
 
         setRecentKey({ code, status });
         if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
@@ -350,7 +378,17 @@ export function useTypingEngine({
         const now = performance.now();
         registerActiveKeystroke(now);
         const current = stateRef.current;
-        const next = processInputText(current, committedText, now);
+        const next = processInputText(current, committedText, now, engineOptionsRef.current);
+        const status: 'correct' | 'incorrect' =
+          next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+        if (soundOptionsRef.current) {
+          playKeystrokeSound(
+            status,
+            soundOptionsRef.current.mode,
+            soundOptionsRef.current.volume,
+            soundOptionsRef.current.theme
+          );
+        }
         applyKeystrokeResult(next, now);
       }
 
@@ -379,7 +417,17 @@ export function useTypingEngine({
         const now = performance.now();
         registerActiveKeystroke(now);
         const current = stateRef.current;
-        const next = processInputText(current, inputChar, now);
+        const next = processInputText(current, inputChar, now, engineOptionsRef.current);
+        const status: 'correct' | 'incorrect' =
+          next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+        if (soundOptionsRef.current) {
+          playKeystrokeSound(
+            status,
+            soundOptionsRef.current.mode,
+            soundOptionsRef.current.volume,
+            soundOptionsRef.current.theme
+          );
+        }
         applyKeystrokeResult(next, now);
         if (inputRef.current) {
           inputRef.current.value = '';
@@ -405,7 +453,17 @@ export function useTypingEngine({
         const now = performance.now();
         registerActiveKeystroke(now);
         const current = stateRef.current;
-        const next = processInputText(current, val, now);
+        const next = processInputText(current, val, now, engineOptionsRef.current);
+        const status: 'correct' | 'incorrect' =
+          next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
+        if (soundOptionsRef.current) {
+          playKeystrokeSound(
+            status,
+            soundOptionsRef.current.mode,
+            soundOptionsRef.current.volume,
+            soundOptionsRef.current.theme
+          );
+        }
         applyKeystrokeResult(next, now);
         (e.currentTarget as HTMLInputElement).value = '';
       }
