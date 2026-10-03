@@ -144,7 +144,7 @@ export function generateTestPassage({
     );
 
     return {
-      id: `paragraph-${language}-${difficulty}-${Date.now()}`,
+      id: `paragraph-${language}-${difficulty}`,
       title: `${diffCapitalized} — Paragraph Test`,
       text: formattedText,
       language,

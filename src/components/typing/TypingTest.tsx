@@ -20,7 +20,12 @@ import VirtualKeyboard from '@/components/keyboard/VirtualKeyboard';
 import { generateTestPassage, TestDifficulty, TestType } from '@/engine/passageGenerator';
 import { getCompletedWordCount } from '@/engine/typingEngine';
 import SettingsModal from '@/components/settings/SettingsModal';
-import { loadTypingSettings, saveTypingSettings, TypingSettings } from '@/engine/settingsTypes';
+import {
+  DEFAULT_TYPING_SETTINGS,
+  loadTypingSettings,
+  saveTypingSettings,
+  TypingSettings,
+} from '@/engine/settingsTypes';
 
 export interface TypingTestProps {
   initialTestMode?: 'standard' | 'exam';
@@ -442,15 +447,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [selectedCharTarget, setSelectedCharTarget] = useState<number>(250);
   const [selectedExamProfile, setSelectedExamProfile] = useState<ExamProfile>(getDefaultExamProfile());
   const [activeDropdown, setActiveDropdown] = useState<'target' | 'type' | 'language' | 'difficulty' | null>(null);
-  const [settings, setSettings] = useState<TypingSettings>(() => loadTypingSettings());
+  const [settings, setSettings] = useState<TypingSettings>(DEFAULT_TYPING_SETTINGS);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [showKeyboard, setShowKeyboard] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('typing_platform_keyboard_visible');
-      if (saved !== null) return saved === 'true';
-    } catch {}
-    return false;
-  });
+  const [showKeyboard, setShowKeyboard] = useState<boolean>(DEFAULT_TYPING_SETTINGS.keyboardVisible);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const examProfiles = useMemo(() => getAllExamProfiles(), []);
 
@@ -494,16 +493,15 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     if (initialTestMode === 'exam') {
       return PASSAGES.find((p) => p.id === defaultExam.passageId) || DEFAULT_PASSAGE;
     }
-    const s = loadTypingSettings();
     return generateTestPassage({
-      language: s.language || 'en',
+      language: 'en',
       difficulty: 'medium',
       testType: 'time',
       targetCount: 60,
-      textSource: s.textSource,
-      includeCapitalLetters: s.includeCapitalLetters,
-      includeSpecialCharacters: s.includeSpecialCharacters,
-      wordListSize: s.wordListSize,
+      textSource: 'common',
+      includeCapitalLetters: false,
+      includeSpecialCharacters: false,
+      wordListSize: 'medium',
     });
   }, [initialTestMode, defaultExam]);
 
@@ -514,8 +512,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       stopOnError: settings.stopOnError,
       forgiveErrors: settings.forgiveErrors,
       spaceSkipsWord: settings.spaceSkipsWord,
+      allowBackspace: settings.allowBackspace,
     }),
-    [settings.stopOnError, settings.forgiveErrors, settings.spaceSkipsWord]
+    [settings.stopOnError, settings.forgiveErrors, settings.spaceSkipsWord, settings.allowBackspace]
   );
 
   const soundOptions = useMemo(
@@ -554,6 +553,37 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     engineOptions,
     soundOptions,
   });
+
+  // Hydrate user settings from localStorage safely after client mount (zero SSR mismatch)
+  useEffect(() => {
+    const loaded = loadTypingSettings();
+    setSettings(loaded);
+    setShowKeyboard(loaded.keyboardVisible);
+
+    if (
+      initialTestMode !== 'exam' &&
+      (loaded.language !== 'en' ||
+        loaded.textSource !== 'common' ||
+        loaded.includeCapitalLetters !== false ||
+        loaded.includeSpecialCharacters !== false ||
+        loaded.wordListSize !== 'medium')
+    ) {
+      if (loaded.language && loaded.language !== 'en') {
+        setSelectedLanguage(loaded.language);
+      }
+      const customPassage = generateTestPassage({
+        language: loaded.language || 'en',
+        difficulty: selectedDifficulty,
+        testType: 'time',
+        targetCount: 60,
+        textSource: loaded.textSource,
+        includeCapitalLetters: loaded.includeCapitalLetters,
+        includeSpecialCharacters: loaded.includeSpecialCharacters,
+        wordListSize: loaded.wordListSize,
+      });
+      setPassage(customPassage);
+    }
+  }, [initialTestMode, selectedDifficulty, setPassage]);
 
   const createPassage = useCallback(
     (opts: {

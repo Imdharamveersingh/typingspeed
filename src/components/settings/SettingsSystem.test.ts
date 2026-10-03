@@ -9,6 +9,7 @@ import { generateTestPassage } from '@/engine/passageGenerator';
 import {
   createInitialState,
   processKeystroke,
+  computeMetrics,
 } from '@/engine/typingEngine';
 import { getWordListStats, getWordListBySize } from '@/data/practiceWords';
 import { playKeystrokeSound } from '@/utils/soundEffects';
@@ -263,9 +264,11 @@ describe('Advanced Test Configuration & Settings System', () => {
       expect(settings.includeCapitalLetters).toBe(false);
       expect(settings.includeSpecialCharacters).toBe(false);
       expect(settings.textSource).toBe('common');
-      expect(settings.stopOnError).toBe(false);
-      expect(settings.forgiveErrors).toBe(true);
+      expect(settings.stopOnError).toBe(true);
+      expect(settings.allowBackspace).toBe(false);
+      expect(settings.forgiveErrors).toBe(false);
       expect(settings.spaceSkipsWord).toBe(false);
+      expect(settings.keyboardVisible).toBe(true);
       expect(settings.fontFamily).toBe('default');
       expect(settings.whitespaceStyle).toBe('normal');
       expect(settings.cursorShape).toBe('underline');
@@ -273,13 +276,14 @@ describe('Advanced Test Configuration & Settings System', () => {
       expect(settings.soundMode).toBe('off');
     });
 
-    it('persists and reloads modified settings', () => {
+    it('persists and reloads modified settings including allowBackspace', () => {
       const custom: TypingSettings = {
         ...DEFAULT_TYPING_SETTINGS,
         includeCapitalLetters: true,
         includeSpecialCharacters: true,
         textSource: 'paragraph',
         stopOnError: true,
+        allowBackspace: true,
         cursorShape: 'block',
         fontFamily: 'mono',
         soundMode: 'all',
@@ -293,6 +297,7 @@ describe('Advanced Test Configuration & Settings System', () => {
       expect(loaded.includeSpecialCharacters).toBe(true);
       expect(loaded.textSource).toBe('paragraph');
       expect(loaded.stopOnError).toBe(true);
+      expect(loaded.allowBackspace).toBe(true);
       expect(loaded.cursorShape).toBe('block');
       expect(loaded.fontFamily).toBe('mono');
       expect(loaded.soundMode).toBe('all');
@@ -316,7 +321,149 @@ describe('Advanced Test Configuration & Settings System', () => {
     });
   });
 
-  describe('6. Regression Safety for /exam and /practice', () => {
+  describe('6. Stop on Error, Backspace, and Authoritative Error Analytics', () => {
+    it('Stop on Error = ON blocks cursor on wrong key, marks it RED, and stays blocked on repeated errors', () => {
+      const passage = {
+        id: 'test',
+        title: 'Test',
+        difficulty: 'easy' as const,
+        text: 'the plan',
+        language: 'en' as const,
+      };
+      let state = createInitialState(passage, 60, 'time');
+
+      // 1. Expected 't', user presses 'x' (wrong key)
+      state = processKeystroke(state, 'x', 1000, { stopOnError: true });
+      expect(state.characters[0].state).toBe('incorrect');
+      expect(state.characters[0].hadMistake).toBe(true);
+      expect(state.currentIndex).toBe(0); // Cursor MUST NOT advance
+      expect(state.incorrectStrokes).toBe(1);
+      expect(state.correctStrokes).toBe(0);
+
+      // 2. Repeated wrong keys do NOT advance cursor
+      state = processKeystroke(state, 'y', 1100, { stopOnError: true });
+      expect(state.characters[0].state).toBe('incorrect');
+      expect(state.currentIndex).toBe(0);
+      expect(state.incorrectStrokes).toBe(2);
+
+      state = processKeystroke(state, 'z', 1200, { stopOnError: true });
+      expect(state.currentIndex).toBe(0);
+      expect(state.incorrectStrokes).toBe(3);
+
+      // 3. Correct key 't' resolves the character and advances cursor
+      state = processKeystroke(state, 't', 1300, { stopOnError: true });
+      expect(state.characters[0].state).toBe('corrected');
+      expect(state.characters[0].hadMistake).toBe(true);
+      expect(state.currentIndex).toBe(1);
+      expect(state.correctStrokes).toBe(1);
+    });
+
+    it('Allow Backspace = OFF ignores Backspace and prevents erasing characters', () => {
+      const passage = {
+        id: 'test',
+        title: 'Test',
+        difficulty: 'easy' as const,
+        text: 'the plan',
+        language: 'en' as const,
+      };
+      let state = createInitialState(passage, 60, 'time');
+
+      // Type 't' correctly
+      state = processKeystroke(state, 't', 1000, { allowBackspace: false });
+      expect(state.currentIndex).toBe(1);
+      expect(state.characters[0].state).toBe('correct');
+
+      // Press Backspace with allowBackspace = OFF
+      const afterBackspace = processKeystroke(state, 'Backspace', 1100, { allowBackspace: false });
+      expect(afterBackspace.currentIndex).toBe(1); // Position untouched
+      expect(afterBackspace.characters[0].state).toBe('correct'); // Not erased
+    });
+
+    it('Allow Backspace = ON enables backward correction and clears mistyped characters', () => {
+      const passage = {
+        id: 'test',
+        title: 'Test',
+        difficulty: 'easy' as const,
+        text: 'the plan',
+        language: 'en' as const,
+      };
+      let state = createInitialState(passage, 60, 'time');
+
+      // Type 't' correctly
+      state = processKeystroke(state, 't', 1000, { allowBackspace: true, stopOnError: true });
+      expect(state.currentIndex).toBe(1);
+
+      // Type 'x' incorrectly at index 1 (expected 'h')
+      state = processKeystroke(state, 'x', 1100, { allowBackspace: true, stopOnError: true });
+      expect(state.currentIndex).toBe(1);
+      expect(state.characters[1].state).toBe('incorrect');
+
+      // Backspace clears the incorrect attempt on index 1
+      state = processKeystroke(state, 'Backspace', 1200, { allowBackspace: true, stopOnError: true });
+      expect(state.currentIndex).toBe(1);
+      expect(state.characters[1].state).toBe('untyped');
+      expect(state.characters[1].hadMistake).toBe(true);
+
+      // Second backspace moves back to index 0
+      state = processKeystroke(state, 'Backspace', 1300, { allowBackspace: true, stopOnError: true });
+      expect(state.currentIndex).toBe(0);
+      expect(state.characters[0].state).toBe('untyped');
+    });
+
+    it('Repeated wrong keys do not artificially inflate Gross WPM or Net WPM', () => {
+      const passage = {
+        id: 'test',
+        title: 'Test',
+        difficulty: 'easy' as const,
+        text: 'the plan',
+        language: 'en' as const,
+      };
+      let state = createInitialState(passage, 60, 'time');
+
+      // Start test by pressing wrong key 'x'
+      state = processKeystroke(state, 'x', 1000, { stopOnError: true });
+
+      // User spams wrong keys 30 times over 5 seconds while stuck on character 0
+      for (let i = 0; i < 30; i++) {
+        state = processKeystroke(state, 'x', 1000 + (i + 1) * 150, { stopOnError: true });
+      }
+
+      expect(state.currentIndex).toBe(0);
+      expect(state.incorrectStrokes).toBe(31);
+      expect(state.correctStrokes).toBe(0);
+
+      // Compute metrics after 5.5 seconds (timestamp 6500)
+      const metrics = computeMetrics(state, 6500);
+      expect(metrics.correctCharacters).toBe(0);
+      expect(metrics.incorrectCharacters).toBe(1);
+      expect(metrics.uncorrectedErrors).toBe(1);
+      // Net WPM must be 0 because 0 correct words were typed
+      expect(metrics.netWPM).toBe(0);
+      // Gross WPM must be strictly restrained to productive progress (near 0, not inflated by 31 strokes)
+      expect(metrics.grossWPM).toBeLessThanOrEqual(2);
+      expect(metrics.accuracy).toBe(0);
+    });
+
+    it('Preserves deterministic passage generation without Date.now() in paragraph mode', () => {
+      const p1 = generateTestPassage({
+        language: 'en',
+        difficulty: 'medium',
+        testType: 'paragraph',
+      });
+      const p2 = generateTestPassage({
+        language: 'en',
+        difficulty: 'medium',
+        testType: 'paragraph',
+      });
+
+      expect(p1.id).toBe('paragraph-en-medium');
+      expect(p2.id).toBe('paragraph-en-medium');
+      expect(p1.id).not.toContain('Date.now()');
+      expect(p1.id).not.toMatch(/\d{10,}/);
+    });
+  });
+
+  describe('7. Regression Safety for /exam and /practice', () => {
     it('preserves all government exam profiles and preset specifications', () => {
       const profiles = getAllExamProfiles();
       expect(profiles.length).toBeGreaterThanOrEqual(3);

@@ -33,6 +33,7 @@ export interface TypingSettings {
 
   // Typing Behavior
   stopOnError: boolean;
+  allowBackspace: boolean;
   forgiveErrors: boolean;
   spaceSkipsWord: boolean;
   keyboardVisible: boolean;
@@ -58,11 +59,12 @@ export const DEFAULT_TYPING_SETTINGS: TypingSettings = {
   wordListSize: 'medium',
   language: 'en',
 
-  stopOnError: false,
-  forgiveErrors: true,
+  stopOnError: true,
+  allowBackspace: false,
+  forgiveErrors: false,
   spaceSkipsWord: false,
-  keyboardVisible: false,
-  showKeyboard: false,
+  keyboardVisible: true,
+  showKeyboard: true,
 
   fontFamily: 'default',
   font: 'default',
@@ -104,6 +106,9 @@ export function loadTypingSettings(): TypingSettings {
     if (raw) {
       const parsed = JSON.parse(raw);
       settings = { ...DEFAULT_TYPING_SETTINGS, ...parsed };
+      if (parsed.allowBackspace !== undefined) {
+        settings.allowBackspace = Boolean(parsed.allowBackspace);
+      }
       if (parsed.font && !parsed.fontFamily) {
         settings.fontFamily = parsed.font;
       }
@@ -136,7 +141,8 @@ export function saveTypingSettings(settings: TypingSettings): void {
     const toSave: TypingSettings = {
       ...settings,
       font: settings.fontFamily || settings.font || 'default',
-      showKeyboard: settings.keyboardVisible ?? settings.showKeyboard ?? false,
+      showKeyboard: settings.keyboardVisible ?? settings.showKeyboard ?? true,
+      allowBackspace: Boolean(settings.allowBackspace),
     };
     storage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(toSave));
     storage.setItem(KEYBOARD_STORAGE_KEY, String(toSave.keyboardVisible));

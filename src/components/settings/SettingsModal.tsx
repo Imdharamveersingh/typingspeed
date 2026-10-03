@@ -296,6 +296,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 2: TYPING */}
           {activeTab === 'typing' && (
             <div className="settings-tab-panel" role="tabpanel">
+              <div className="settings-group-header" style={{ marginBottom: 'var(--space-4)' }}>
+                <h3 className="settings-label" style={{ fontSize: 'var(--text-base)', margin: 0 }}>
+                  Typing Behavior
+                </h3>
+              </div>
+
               {/* Stop on Error */}
               <div className="settings-row">
                 <div className="settings-row-text">
@@ -308,7 +314,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     className={`pill-btn ${!settings.stopOnError ? 'active' : ''}`}
-                    onClick={() => onUpdateSettings({ stopOnError: false })}
+                    onClick={() => onUpdateSettings({ stopOnError: false, forgiveErrors: true })}
                     aria-pressed={!settings.stopOnError}
                   >
                     OFF
@@ -316,8 +322,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     className={`pill-btn ${settings.stopOnError ? 'active' : ''}`}
-                    onClick={() => onUpdateSettings({ stopOnError: true })}
+                    onClick={() => onUpdateSettings({ stopOnError: true, forgiveErrors: false })}
                     aria-pressed={settings.stopOnError}
+                  >
+                    ON
+                  </button>
+                </div>
+              </div>
+
+              {/* Allow Backspace */}
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <span className="settings-row-label">Allow Backspace</span>
+                  <span className="settings-row-description">
+                    Allow moving backward to correct previously typed characters.
+                  </span>
+                </div>
+                <div className="settings-toggle-group">
+                  <button
+                    type="button"
+                    className={`pill-btn ${!settings.allowBackspace ? 'active' : ''}`}
+                    onClick={() => onUpdateSettings({ allowBackspace: false })}
+                    aria-pressed={!settings.allowBackspace}
+                  >
+                    OFF
+                  </button>
+                  <button
+                    type="button"
+                    className={`pill-btn ${settings.allowBackspace ? 'active' : ''}`}
+                    onClick={() => onUpdateSettings({ allowBackspace: true })}
+                    aria-pressed={settings.allowBackspace}
                   >
                     ON
                   </button>
@@ -329,14 +363,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="settings-row-text">
                   <span className="settings-row-label">Forgive Errors</span>
                   <span className="settings-row-description">
-                    Allow the user to continue typing past an incorrect character without getting blocked.
+                    Allow continuing past incorrect characters.
                   </span>
                 </div>
                 <div className="settings-toggle-group">
                   <button
                     type="button"
                     className={`pill-btn ${!settings.forgiveErrors ? 'active' : ''}`}
-                    onClick={() => onUpdateSettings({ forgiveErrors: false })}
+                    onClick={() => onUpdateSettings({ forgiveErrors: false, stopOnError: true })}
                     aria-pressed={!settings.forgiveErrors}
                   >
                     OFF
@@ -344,7 +378,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     className={`pill-btn ${settings.forgiveErrors ? 'active' : ''}`}
-                    onClick={() => onUpdateSettings({ forgiveErrors: true })}
+                    onClick={() => onUpdateSettings({ forgiveErrors: true, stopOnError: false })}
                     aria-pressed={settings.forgiveErrors}
                   >
                     ON
@@ -357,7 +391,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="settings-row-text">
                   <span className="settings-row-label">Space Skips Word</span>
                   <span className="settings-row-description">
-                    Pressing Space instantly jumps past the remaining characters of the current word.
+                    Pressing Space skips the remaining characters in the current word.
                   </span>
                 </div>
                 <div className="settings-toggle-group">
@@ -385,7 +419,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="settings-row-text">
                   <span className="settings-row-label">On-Screen Keyboard</span>
                   <span className="settings-row-description">
-                    Display interactive finger-placement virtual keyboard guide below the test.
+                    Show the virtual keyboard below the typing passage.
                   </span>
                 </div>
                 <div className="settings-toggle-group">

@@ -125,6 +125,7 @@ export interface TypingEngineOptions {
   stopOnError?: boolean;
   forgiveErrors?: boolean;
   spaceSkipsWord?: boolean;
+  allowBackspace?: boolean;
 }
 
 /**
@@ -141,7 +142,10 @@ export function processKeystroke(
     initialState.testType === 'words' ||
     initialState.testType === 'characters' ||
     initialState.testType === 'paragraph';
-  if (initialState.status === 'completed' && !(key === 'Backspace' && isTargetMode)) {
+  if (
+    initialState.status === 'completed' &&
+    !(key === 'Backspace' && isTargetMode && options.allowBackspace !== false)
+  ) {
     return initialState;
   }
 
@@ -159,6 +163,11 @@ export function processKeystroke(
 
   // Handle Backspace
   if (key === 'Backspace') {
+    // If allowBackspace is explicitly disabled, ignore Backspace
+    if (options.allowBackspace === false) {
+      return state;
+    }
+
     // If user typed extra characters past the passage length, remove the last extra character
     if (state.extraCharacters.length > 0) {
       return {
@@ -183,6 +192,27 @@ export function processKeystroke(
           characters: updatedCharacters,
         };
       }
+    }
+
+    // In Stop on Error mode, if the current character is marked incorrect,
+    // backspace clears the incorrect attempt on the current character
+    if (
+      state.currentIndex < state.characters.length &&
+      state.characters[state.currentIndex].state === 'incorrect'
+    ) {
+      const updatedCharacters = [...state.characters];
+      const currentChar = updatedCharacters[state.currentIndex];
+      updatedCharacters[state.currentIndex] = {
+        char: currentChar.char,
+        state: 'untyped',
+        typedChar: undefined,
+        pendingComposition: undefined,
+        hadMistake: currentChar.hadMistake,
+      };
+      return {
+        ...state,
+        characters: updatedCharacters,
+      };
     }
 
     // If at index 0, backspace does nothing
@@ -526,12 +556,25 @@ export function calculateCurrentMetrics(
     }
   }
 
+  // If the current character is blocked in incorrect state, count it as an uncorrected error
+  if (state.currentIndex < state.characters.length && characters[state.currentIndex]?.state === 'incorrect') {
+    incorrectCharacters++;
+  }
+
   const extraCount = extraCharacters.length;
   const totalProcessed = correctCharacters + incorrectCharacters + extraCount;
   const uncorrectedErrors = incorrectCharacters + extraCount;
 
-  const grossWPM = calculateGrossWPM(totalKeystrokes, elapsedSeconds);
-  const netWPM = calculateNetWPM(totalKeystrokes, uncorrectedErrors, elapsedSeconds);
+  // Effective typed keystrokes for WPM:
+  // Repeated wrong key presses while blocked on an error do not advance the passage
+  // or inflate WPM. Effective progression keystrokes cannot exceed correct strokes + uncorrected errors.
+  const effectiveWpmKeystrokes = Math.min(
+    totalKeystrokes,
+    Math.max(0, state.correctStrokes + uncorrectedErrors)
+  );
+
+  const grossWPM = calculateGrossWPM(effectiveWpmKeystrokes, elapsedSeconds);
+  const netWPM = calculateNetWPM(effectiveWpmKeystrokes, uncorrectedErrors, elapsedSeconds);
   const accuracy = calculateAccuracy(correctCharacters, totalProcessed);
 
   return {
@@ -547,3 +590,6 @@ export function calculateCurrentMetrics(
     uncorrectedErrors,
   };
 }
+
+export const computeMetrics = calculateCurrentMetrics;
+
