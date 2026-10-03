@@ -22,6 +22,7 @@ import { getCompletedWordCount } from '@/engine/typingEngine';
 
 export interface TypingTestProps {
   initialTestMode?: 'standard' | 'exam';
+  examNotice?: React.ReactNode;
 }
 
 const DURATIONS: { label: string; value: TestDuration }[] = [
@@ -434,6 +435,7 @@ const TestToolbar = React.memo(function TestToolbar({
 
 export const TypingTest: React.FC<TypingTestProps> = ({
   initialTestMode = 'standard',
+  examNotice,
 }) => {
   const [viewMode, setViewMode] = useState<'test' | 'practice'>('test');
   const [practiceType, setPracticeType] = useState<PracticeType>('characters');
@@ -853,21 +855,23 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
       {/* Main Interactive Stage: Active Passage or Completed Results */}
       {isCompleted ? (
-        <ResultCard
-          state={state}
-          onRestart={handleRetest}
-          onChangeTest={handleRetest}
-          onPracticeMistakes={() => setViewMode('practice')}
-          testMode={testMode}
-          examProfile={testMode === 'exam' ? selectedExamProfile : undefined}
-        />
+        <>
+          <ResultCard
+            state={state}
+            onRestart={handleRetest}
+            onChangeTest={handleRetest}
+            onPracticeMistakes={() => setViewMode('practice')}
+            testMode={testMode}
+            examProfile={testMode === 'exam' ? selectedExamProfile : undefined}
+          />
+          {testMode === 'exam' && examNotice && (
+            <div className="exam-supporting-info" style={{ marginTop: 'var(--space-6)' }}>
+              {examNotice}
+            </div>
+          )}
+        </>
       ) : (
         <div className="test-workspace-stage">
-          {/* Exam Instructions Card when in exam mode and idle */}
-          {testMode === 'exam' && state.status === 'idle' && (
-            <ExamInstructionsCard profile={selectedExamProfile} />
-          )}
-
           {/* Live Metrics: GWPM | Net WPM | Accuracy | Time | Errors */}
           <MetricsBar
             metrics={metrics}
@@ -929,6 +933,18 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 visible={showKeyboard}
                 onToggleVisible={handleToggleKeyboard}
               />
+            </div>
+          )}
+
+          {/* Supporting Exam Information below typing interface & keyboard */}
+          {testMode === 'exam' && (
+            <div className="exam-supporting-info" style={{ marginTop: 'var(--space-6)' }}>
+              {examNotice}
+              {state.status === 'idle' && (
+                <div style={{ marginTop: examNotice ? 'var(--space-4)' : 0 }}>
+                  <ExamInstructionsCard profile={selectedExamProfile} />
+                </div>
+              )}
             </div>
           )}
         </div>
