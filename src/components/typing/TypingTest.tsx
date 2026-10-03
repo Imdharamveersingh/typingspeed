@@ -368,8 +368,7 @@ const TestToolbar = React.memo(function TestToolbar({
           aria-expanded={activeDropdown === 'settings'}
           title="Settings"
         >
-          <span className="control-label">SETTINGS</span>
-          <span className="control-value">{showKeyboard ? 'Keyboard ON' : 'Options'}</span>
+          <span className="control-value">⚙ Settings</span>
           <span className="pill-arrow" aria-hidden="true">▾</span>
         </button>
 
@@ -875,7 +874,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             testType={effectiveTestType}
             initialDuration={state.duration}
             targetProgress={targetProgress}
-            isRunning={state.status === 'running'}
           />
 
           {/* Minimalist Live Typing Progress Bar */}
@@ -909,11 +907,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
           {/* Helper Guidance below passage */}
           <div className="test-guidance-line">
-            <span
-              className={`guidance-text ${
-                state.status === 'idle' ? 'guidance-prompt-idle' : 'guidance-prompt-active'
-              }`}
-            >
+            <span>
               {state.status === 'idle'
                 ? selectedLanguage === 'hi'
                   ? 'टाइमर शुरू करने के लिए कोई भी वर्ण टाइप करें'

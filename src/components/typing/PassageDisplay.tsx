@@ -65,11 +65,7 @@ const WordComponent = React.memo(
       }
 
       chars.push(
-        <span
-          key={i}
-          className={`char ${stateClass}${isCurrent ? ' char-current' : ''}`}
-          data-char-index={i}
-        >
+        <span key={i} className={`char ${stateClass}`} data-char-index={i}>
           {isCurrent && <span className="caret-cursor" ref={caretRef} />}
           {item.char}
         </span>
@@ -138,10 +134,7 @@ const SpaceComponent = React.memo(
     }
 
     return (
-      <span
-        className={`char ${stateClass}${isCurrent ? ' char-current' : ''}`}
-        data-char-index={index}
-      >
+      <span className={`char ${stateClass}`} data-char-index={index}>
         {isCurrent && <span className="caret-cursor" ref={caretRef} />}
         {item.char}
       </span>
@@ -298,7 +291,7 @@ export const PassageDisplay: React.FC<PassageDisplayProps> = React.memo(({
     const caretRelativeTop = Math.max(0, charRect.top - originTop);
 
     // Determine actual line height dynamically from computed styles with fallback
-    let lineHeight = isHindi ? 48 : 42;
+    let lineHeight = isHindi ? 46 : 38;
     try {
       const computed = window.getComputedStyle(containerEl).lineHeight;
       const parsed = parseFloat(computed);
