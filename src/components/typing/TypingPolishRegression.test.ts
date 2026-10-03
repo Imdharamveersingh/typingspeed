@@ -710,4 +710,85 @@ describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () 
       expect(html).toContain('data-code="KeyT"');
     });
   });
+
+  // =========================================================================
+  // K. Active Test Page UI Refinements & Readability Regressions
+  // =========================================================================
+  describe('K. Active Test Page UI Refinements & Readability Regressions', () => {
+    const cssPath = path.resolve(__dirname, '../../styles/globals.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    it('passage text has increased font-size and comfortable 42px line-height on desktop', () => {
+      expect(cssContent).toMatch(/\.passage-scroll-viewport\s*\{[^}]*height:\s*calc\(5\s*\*\s*42px\);/s);
+      expect(cssContent).toMatch(/\.passage-text\s*\{[^}]*font-size:\s*1\.3125rem;/s);
+      expect(cssContent).toMatch(/\.passage-text\s*\{[^}]*line-height:\s*42px;/s);
+    });
+
+    it('passage text removes notebook ruled lines completely', () => {
+      expect(cssContent).toMatch(/\.passage-text\s*\{[^}]*background-image:\s*none;/s);
+      expect(cssContent).toMatch(/\.passage-text\.lang-hi\s*\{[^}]*background-image:\s*none;/s);
+    });
+
+    it('active current character has dedicated focus treatment and crisp caret cursor', () => {
+      expect(cssContent).toMatch(/\.char\.char-current\s*\{/s);
+      expect(cssContent).toMatch(/\.char\.char-current\.char-untyped\s*\{/s);
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.char\.char-current\.char-untyped\s*\{/s);
+      expect(cssContent).toMatch(/\.caret-cursor\s*\{[^}]*height:\s*3px;/s);
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.caret-cursor\s*\{[^}]*background-color:\s*#3B82F6;/s);
+    });
+
+    it('start state and guidance line have enhanced contrast and clear typography', () => {
+      expect(cssContent).toMatch(/\.test-guidance-line\s*\{/s);
+      expect(cssContent).toMatch(/\.guidance-text\s*\{[^}]*font-size:\s*0\.8125rem;/s);
+      expect(cssContent).toMatch(/\.guidance-prompt-idle\s*\{[^}]*color:\s*var\(--text-secondary\);/s);
+    });
+
+    it('MetricsBar active timer has prominent visual accent when isRunning is true', () => {
+      const dummyMetrics = {
+        grossWPM: 70,
+        netWPM: 68,
+        accuracy: 97,
+        elapsedSeconds: 20,
+        remainingSeconds: 40,
+        correctCharacters: 100,
+        incorrectCharacters: 3,
+        extraCharacters: 0,
+        totalKeystrokes: 103,
+        uncorrectedErrors: 1,
+      };
+
+      // Idle / not running: standard time card
+      const htmlIdle = renderToStaticMarkup(
+        React.createElement(MetricsBar, {
+          metrics: dummyMetrics,
+          testType: 'time',
+          isRunning: false,
+        })
+      );
+      expect(htmlIdle).toContain('metric-time');
+      expect(htmlIdle).not.toContain('metric-time-active');
+
+      // Active / running: prominent time card
+      const htmlRunning = renderToStaticMarkup(
+        React.createElement(MetricsBar, {
+          metrics: dummyMetrics,
+          testType: 'time',
+          isRunning: true,
+        })
+      );
+      expect(htmlRunning).toContain('metric-time-active');
+      expect(htmlRunning).toContain('time-running');
+
+      // CSS rules for active timer
+      expect(cssContent).toMatch(/\.metric-card\.metric-time\.metric-time-active\s+\.metric-value\s*\{/s);
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.metric-card\.metric-time\.metric-time-active\s+\.metric-value\s*\{/s);
+    });
+
+    it('Next-Key indicator has enhanced size, contrast, and dark mode overrides', () => {
+      expect(cssContent).toMatch(/\.indicator-label\s*\{[^}]*font-size:\s*11px;/s);
+      expect(cssContent).toMatch(/\.indicator-grapheme\s*\{[^}]*font-size:\s*0\.9375rem;/s);
+      expect(cssContent).toMatch(/\.indicator-modifier\s*\{[^}]*font-size:\s*11px;/s);
+      expect(cssContent).toMatch(/\[data-theme="dark"\]\s+\.indicator-grapheme\s*\{[^}]*color:\s*#60A5FA;/s);
+    });
+  });
 });

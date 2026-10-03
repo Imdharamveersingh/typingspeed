@@ -7,12 +7,14 @@ interface MetricsBarProps {
   testType?: TestType;
   initialDuration?: number;
   targetProgress?: { current: number; total: number } | null;
+  isRunning?: boolean;
 }
 
 export const MetricsBar: React.FC<MetricsBarProps> = React.memo(({
   metrics,
   testType = 'time',
   targetProgress,
+  isRunning = false,
 }) => {
   const isCountMode = testType === 'words' || testType === 'characters';
   // Time mode: countdown of remaining seconds. Words/Chars mode: elapsed seconds.
@@ -41,8 +43,11 @@ export const MetricsBar: React.FC<MetricsBarProps> = React.memo(({
       </div>
 
       {/* 4. Time */}
-      <div className="metric-card" data-testid="metric-time">
-        <div className="metric-value">{timeDisplay}</div>
+      <div
+        className={`metric-card metric-time ${isRunning ? 'metric-time-active' : ''}`}
+        data-testid="metric-time"
+      >
+        <div className={`metric-value ${isRunning ? 'time-running' : ''}`}>{timeDisplay}</div>
         <div className="metric-label">Time</div>
       </div>
 
