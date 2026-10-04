@@ -696,14 +696,19 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           return prev;
         }
 
-        const updated = { ...prev, ...newSettings };
+        // Language preservation / updating:
+        // If newSettings explicitly specifies language, use that.
+        // Otherwise preserve the current selectedLanguage (e.g. Hindi or English).
+        const targetLang: TypingLanguage =
+          newSettings.language !== undefined ? newSettings.language : selectedLanguage;
+
+        const updated = { ...prev, ...newSettings, language: targetLang };
         saveTypingSettings(updated);
 
         if (newSettings.keyboardVisible !== undefined) {
           setShowKeyboard(newSettings.keyboardVisible);
         }
 
-        const targetLang = newSettings.language || updated.language || selectedLanguage;
         if (
           newSettings.language !== undefined &&
           newSettings.language !== selectedLanguage &&
@@ -818,6 +823,11 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const handleSelectLanguage = useCallback((lang: TypingLanguage) => {
     if (state.status === 'running') return;
     setSelectedLanguage(lang);
+    setSettings((prev) => {
+      const next = { ...prev, language: lang };
+      saveTypingSettings(next);
+      return next;
+    });
     if (testMode === 'exam') {
       setActiveDropdown(null);
       return;
@@ -1242,7 +1252,8 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
+        settings={{ ...settings, language: selectedLanguage }}
+        currentLanguage={selectedLanguage}
         onUpdateSettings={handleUpdateSettings}
       />
     </section>

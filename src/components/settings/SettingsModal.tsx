@@ -9,6 +9,7 @@ import {
   WhitespaceStyle,
   WordListSize,
 } from '@/engine/settingsTypes';
+import { TypingLanguage } from '@/engine/types';
 import { getWordListStats } from '@/data/practiceWords';
 import { playKeystrokeSound } from '@/utils/soundEffects';
 
@@ -16,6 +17,7 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: TypingSettings;
+  currentLanguage?: TypingLanguage;
   onUpdateSettings: (newSettings: Partial<TypingSettings>) => void;
 }
 
@@ -25,11 +27,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   settings,
+  currentLanguage,
   onUpdateSettings,
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('text');
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  const effectiveLanguage: TypingLanguage = currentLanguage || settings.language || 'en';
+  const isHindi = effectiveLanguage === 'hi';
 
   // Close on ESC
   useEffect(() => {
@@ -182,31 +188,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Capital Letters */}
-              <div className="settings-row">
+              <div className={`settings-row ${isHindi ? 'settings-row-disabled' : ''}`}>
                 <div className="settings-row-text">
-                  <span className="settings-row-label">Include Capital Letters</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span className="settings-row-label">Include Capital Letters</span>
+                    {isHindi && (
+                      <span className="settings-disabled-tag">Not applicable to Hindi</span>
+                    )}
+                  </div>
                   <span className="settings-row-description">
-                    When OFF, tests use lowercase letters. When ON, natural capitalization is included.
+                    {isHindi
+                      ? 'Not applicable to Hindi (Hindi script has no uppercase/lowercase distinction).'
+                      : 'When OFF, tests use lowercase letters. When ON, natural capitalization is included.'}
                   </span>
                 </div>
-                <div className="settings-toggle-group">
-                  <button
-                    type="button"
-                    className={`pill-btn ${!settings.includeCapitalLetters ? 'active' : ''}`}
-                    onClick={() => onUpdateSettings({ includeCapitalLetters: false })}
-                    aria-pressed={!settings.includeCapitalLetters}
-                  >
-                    OFF
-                  </button>
-                  <button
-                    type="button"
-                    className={`pill-btn ${settings.includeCapitalLetters ? 'active' : ''}`}
-                    onClick={() => onUpdateSettings({ includeCapitalLetters: true })}
-                    aria-pressed={settings.includeCapitalLetters}
-                  >
-                    ON
-                  </button>
-                </div>
+                {isHindi ? (
+                  <div className="settings-disabled-indicator" aria-disabled="true">
+                    <span>Disabled for Hindi</span>
+                  </div>
+                ) : (
+                  <div className="settings-toggle-group">
+                    <button
+                      type="button"
+                      className={`pill-btn ${!settings.includeCapitalLetters ? 'active' : ''}`}
+                      onClick={() => onUpdateSettings({ includeCapitalLetters: false })}
+                      aria-pressed={!settings.includeCapitalLetters}
+                    >
+                      OFF
+                    </button>
+                    <button
+                      type="button"
+                      className={`pill-btn ${settings.includeCapitalLetters ? 'active' : ''}`}
+                      onClick={() => onUpdateSettings({ includeCapitalLetters: true })}
+                      aria-pressed={settings.includeCapitalLetters}
+                    >
+                      ON
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Special Characters */}
@@ -274,17 +293,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="settings-toggle-group">
                   <button
                     type="button"
-                    className={`pill-btn ${settings.language === 'en' ? 'active' : ''}`}
+                    className={`pill-btn ${effectiveLanguage === 'en' ? 'active' : ''}`}
                     onClick={() => onUpdateSettings({ language: 'en' })}
-                    aria-pressed={settings.language === 'en'}
+                    aria-pressed={effectiveLanguage === 'en'}
                   >
                     English
                   </button>
                   <button
                     type="button"
-                    className={`pill-btn ${settings.language === 'hi' ? 'active' : ''}`}
+                    className={`pill-btn ${effectiveLanguage === 'hi' ? 'active' : ''}`}
                     onClick={() => onUpdateSettings({ language: 'hi' })}
-                    aria-pressed={settings.language === 'hi'}
+                    aria-pressed={effectiveLanguage === 'hi'}
                   >
                     हिन्दी (Hindi)
                   </button>

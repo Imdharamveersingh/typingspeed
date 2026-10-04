@@ -39,11 +39,16 @@ export function formatPassageText(
   includeCapitalLetters: boolean = false,
   includeSpecialCharacters: boolean = false
 ): string {
-  if (language === 'hi') {
-    return text.trim();
-  }
-
   let formatted = text.trim();
+
+  if (language === 'hi') {
+    if (!includeSpecialCharacters) {
+      // Strip punctuation/special symbols (danda, double danda, commas, hyphens, quotes, brackets, etc.)
+      formatted = formatted.replace(/[।,;\-:—"'"!?()[\]{}.॥]/g, '');
+      formatted = formatted.replace(/\s+/g, ' ').trim();
+    }
+    return formatted;
+  }
 
   // If special characters are off, remove punctuation symbols
   if (!includeSpecialCharacters) {
@@ -128,7 +133,8 @@ export function generateTestPassage({
     let rawText = '';
     if (language === 'hi') {
       const sources = getSourceTexts('hi', difficulty);
-      rawText = sources[0] || 'अभ्यास और धैर्य से सफलता प्राप्त होती है।';
+      const idx = Math.floor(Math.random() * sources.length) % (sources.length || 1);
+      rawText = sources[idx] || 'अभ्यास और धैर्य से सफलता प्राप्त होती है।';
     } else {
       // Select an everyday readable paragraph
       const pool = difficulty === 'hard' ? PASSAGES.map((p) => p.text) : EVERYDAY_PARAGRAPHS;
@@ -175,11 +181,9 @@ export function generateTestPassage({
         chosenWords.push(allWords[poolIndex % allWords.length]);
         poolIndex++;
       }
-      if (language === 'en') {
-        chosenWords = chosenWords.map((w) =>
-          formatPassageText(w, language, includeCapitalLetters, includeSpecialCharacters)
-        ).filter(Boolean);
-      }
+      chosenWords = chosenWords.map((w) =>
+        formatPassageText(w, language, includeCapitalLetters, includeSpecialCharacters)
+      ).filter(Boolean);
     }
 
     const generatedText = chosenWords.join(' ');
@@ -199,16 +203,12 @@ export function generateTestPassage({
     const sources = getSourceTexts(language, difficulty);
     let combined = sources.join(' ');
 
-    if (language === 'en') {
-      combined = formatPassageText(combined, language, includeCapitalLetters, includeSpecialCharacters);
-    }
+    combined = formatPassageText(combined, language, includeCapitalLetters, includeSpecialCharacters);
 
     let graphemes = segmentGraphemes(combined, language);
     while (graphemes.length < targetChars) {
       combined += ' ' + sources.join(' ');
-      if (language === 'en') {
-        combined = formatPassageText(combined, language, includeCapitalLetters, includeSpecialCharacters);
-      }
+      combined = formatPassageText(combined, language, includeCapitalLetters, includeSpecialCharacters);
       graphemes = segmentGraphemes(combined, language);
     }
 
@@ -246,11 +246,9 @@ export function generateTestPassage({
       chosenWords.push(allWords[poolIndex % allWords.length]);
       poolIndex++;
     }
-    if (language === 'en') {
-      chosenWords = chosenWords.map((w) =>
-        formatPassageText(w, language, includeCapitalLetters, includeSpecialCharacters)
-      ).filter(Boolean);
-    }
+    chosenWords = chosenWords.map((w) =>
+      formatPassageText(w, language, includeCapitalLetters, includeSpecialCharacters)
+    ).filter(Boolean);
   }
 
   const generatedText = chosenWords.join(' ');

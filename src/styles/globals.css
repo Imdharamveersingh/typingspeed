@@ -5273,6 +5273,34 @@ a:hover {
   color: #ffffff;
 }
 
+.settings-row-disabled {
+  opacity: 0.78;
+}
+
+.settings-disabled-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.settings-disabled-indicator {
+  display: flex;
+  align-items: center;
+  padding: 5px 12px;
+  background-color: var(--bg-canvas);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
 .settings-stats-badge {
   display: flex;
   flex-wrap: wrap;
