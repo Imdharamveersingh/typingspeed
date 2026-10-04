@@ -157,12 +157,21 @@ export function useTypingEngine({
       let finalState = nextState;
       const isTimeMode = !finalState.testType || finalState.testType === 'time';
       const durationMs = finalState.duration * 1000;
+      const isBlocked =
+        finalState.currentIndex < finalState.characters.length &&
+        finalState.characters[finalState.currentIndex]?.state === 'incorrect';
+
+      if (finalState.accumulatedActiveTimeMs !== undefined) {
+        activeAccumulatedMsRef.current = finalState.accumulatedActiveTimeMs;
+      }
+
       const effectiveTime = (finalState.startTime ?? now) + activeAccumulatedMsRef.current;
 
       // In Time mode: if accumulated active typing time reached duration, mark as completed immediately
       if (
         isTimeMode &&
         finalState.status === 'running' &&
+        !isBlocked &&
         activeAccumulatedMsRef.current >= durationMs
       ) {
         finalState = {
@@ -182,14 +191,19 @@ export function useTypingEngine({
         timeModeCompletionTimerRef.current = null;
       }
 
-      // In Time mode: schedule one-shot completion timer only if remaining active time is within active threshold
-      if (isTimeMode && finalState.status === 'running') {
+      // In Time mode: schedule one-shot completion timer only if remaining active time is within active threshold and not blocked
+      if (isTimeMode && finalState.status === 'running' && !isBlocked) {
         const remainingMs = durationMs - activeAccumulatedMsRef.current;
         if (remainingMs > 0 && remainingMs <= 2000) {
           timeModeCompletionTimerRef.current = setTimeout(() => {
             if (stateRef.current.status === 'running') {
-              activeAccumulatedMsRef.current = durationMs;
-              completeTest();
+              const currentBlocked =
+                stateRef.current.currentIndex < stateRef.current.characters.length &&
+                stateRef.current.characters[stateRef.current.currentIndex]?.state === 'incorrect';
+              if (!currentBlocked) {
+                activeAccumulatedMsRef.current = durationMs;
+                completeTest();
+              }
             }
           }, remainingMs);
         }
@@ -313,11 +327,28 @@ export function useTypingEngine({
       if (e.key === 'Backspace') {
         e.preventDefault();
         const now = performance.now();
-        if (stateRef.current.status === 'running' || (stateRef.current.status === 'completed' && isTargetMode)) {
+        const current = stateRef.current;
+        const isBlockedBefore =
+          current.status === 'running' &&
+          current.currentIndex < current.characters.length &&
+          current.characters[current.currentIndex]?.state === 'incorrect';
+
+        if (
+          !isBlockedBefore &&
+          (current.status === 'running' || (current.status === 'completed' && isTargetMode))
+        ) {
           registerActiveKeystroke(now);
         }
-        const current = stateRef.current;
+
         const next = processKeystroke(current, 'Backspace', now, engineOptionsRef.current);
+
+        if (next.accumulatedActiveTimeMs !== undefined) {
+          activeAccumulatedMsRef.current = next.accumulatedActiveTimeMs;
+        }
+        if (isBlockedBefore) {
+          lastKeystrokeTimeRef.current = now;
+          lastTickTimeRef.current = now;
+        }
 
         setRecentKey({ code: 'Backspace', status: 'correct' });
         if (recentKeyTimerRef.current) clearTimeout(recentKeyTimerRef.current);
@@ -336,11 +367,31 @@ export function useTypingEngine({
       if (!isControlKey(e.key)) {
         e.preventDefault();
         const now = performance.now();
-        registerActiveKeystroke(now);
-        const code = e.nativeEvent.code || e.code || e.key;
-
         const current = stateRef.current;
+        const isBlockedBefore =
+          current.status === 'running' &&
+          current.currentIndex < current.characters.length &&
+          current.characters[current.currentIndex]?.state === 'incorrect';
+
+        if (!isBlockedBefore) {
+          registerActiveKeystroke(now);
+        }
+
+        const code = e.nativeEvent.code || e.code || e.key;
         const next = processKeystroke(current, e.key, now, engineOptionsRef.current);
+
+        if (next.accumulatedActiveTimeMs !== undefined) {
+          activeAccumulatedMsRef.current = next.accumulatedActiveTimeMs;
+        }
+
+        const isBlockedAfter =
+          next.currentIndex < next.characters.length &&
+          next.characters[next.currentIndex]?.state === 'incorrect';
+
+        if (isBlockedBefore && !isBlockedAfter) {
+          lastKeystrokeTimeRef.current = now;
+          lastTickTimeRef.current = now;
+        }
 
         const status: 'correct' | 'incorrect' =
           next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
@@ -376,9 +427,31 @@ export function useTypingEngine({
 
       if (committedText && stateRef.current.status !== 'completed') {
         const now = performance.now();
-        registerActiveKeystroke(now);
         const current = stateRef.current;
+        const isBlockedBefore =
+          current.status === 'running' &&
+          current.currentIndex < current.characters.length &&
+          current.characters[current.currentIndex]?.state === 'incorrect';
+
+        if (!isBlockedBefore) {
+          registerActiveKeystroke(now);
+        }
+
         const next = processInputText(current, committedText, now, engineOptionsRef.current);
+
+        if (next.accumulatedActiveTimeMs !== undefined) {
+          activeAccumulatedMsRef.current = next.accumulatedActiveTimeMs;
+        }
+
+        const isBlockedAfter =
+          next.currentIndex < next.characters.length &&
+          next.characters[next.currentIndex]?.state === 'incorrect';
+
+        if (isBlockedBefore && !isBlockedAfter) {
+          lastKeystrokeTimeRef.current = now;
+          lastTickTimeRef.current = now;
+        }
+
         const status: 'correct' | 'incorrect' =
           next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
         if (soundOptionsRef.current) {
@@ -415,9 +488,31 @@ export function useTypingEngine({
       if (inputChar && !isControlKey(inputChar)) {
         e.preventDefault();
         const now = performance.now();
-        registerActiveKeystroke(now);
         const current = stateRef.current;
+        const isBlockedBefore =
+          current.status === 'running' &&
+          current.currentIndex < current.characters.length &&
+          current.characters[current.currentIndex]?.state === 'incorrect';
+
+        if (!isBlockedBefore) {
+          registerActiveKeystroke(now);
+        }
+
         const next = processInputText(current, inputChar, now, engineOptionsRef.current);
+
+        if (next.accumulatedActiveTimeMs !== undefined) {
+          activeAccumulatedMsRef.current = next.accumulatedActiveTimeMs;
+        }
+
+        const isBlockedAfter =
+          next.currentIndex < next.characters.length &&
+          next.characters[next.currentIndex]?.state === 'incorrect';
+
+        if (isBlockedBefore && !isBlockedAfter) {
+          lastKeystrokeTimeRef.current = now;
+          lastTickTimeRef.current = now;
+        }
+
         const status: 'correct' | 'incorrect' =
           next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
         if (soundOptionsRef.current) {
@@ -451,9 +546,31 @@ export function useTypingEngine({
       const val = (e.currentTarget as HTMLInputElement).value;
       if (val && !isControlKey(val)) {
         const now = performance.now();
-        registerActiveKeystroke(now);
         const current = stateRef.current;
+        const isBlockedBefore =
+          current.status === 'running' &&
+          current.currentIndex < current.characters.length &&
+          current.characters[current.currentIndex]?.state === 'incorrect';
+
+        if (!isBlockedBefore) {
+          registerActiveKeystroke(now);
+        }
+
         const next = processInputText(current, val, now, engineOptionsRef.current);
+
+        if (next.accumulatedActiveTimeMs !== undefined) {
+          activeAccumulatedMsRef.current = next.accumulatedActiveTimeMs;
+        }
+
+        const isBlockedAfter =
+          next.currentIndex < next.characters.length &&
+          next.characters[next.currentIndex]?.state === 'incorrect';
+
+        if (isBlockedBefore && !isBlockedAfter) {
+          lastKeystrokeTimeRef.current = now;
+          lastTickTimeRef.current = now;
+        }
+
         const status: 'correct' | 'incorrect' =
           next.correctStrokes > current.correctStrokes ? 'correct' : 'incorrect';
         if (soundOptionsRef.current) {

@@ -43,6 +43,13 @@ export function getActiveTypingSeconds(
     return Math.max(0.1, accumulated / 1000);
   }
 
+  const isBlocked =
+    state.currentIndex < state.characters.length &&
+    state.characters[state.currentIndex]?.state === 'incorrect';
+  if (isBlocked) {
+    return Math.max(0, accumulated / 1000);
+  }
+
   const now =
     currentTimestamp ??
     (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -259,11 +266,16 @@ export function processKeystroke(
   let currentStatus = state.status;
   let newAccumulatedActiveMs = state.accumulatedActiveTimeMs ?? 0;
 
+  const isAlreadyBlocked =
+    state.status === 'running' &&
+    state.currentIndex < state.characters.length &&
+    state.characters[state.currentIndex].state === 'incorrect';
+
   if (state.status === 'idle' || currentStartTime === null) {
     currentStatus = 'running';
     currentStartTime = timestamp;
     newAccumulatedActiveMs = 0;
-  } else {
+  } else if (!isAlreadyBlocked) {
     // Subsequent keystroke: add active delta up to the idle threshold
     const lastKey = state.lastKeystrokeTime ?? currentStartTime;
     const delta = Math.max(0, timestamp - lastKey);
@@ -328,7 +340,7 @@ export function processKeystroke(
 
     // Check exact normalized grapheme match
     if (compareGraphemes(expectedChar, candidate)) {
-      const wasMistake = Boolean(currentItem.hadMistake);
+      const wasMistake = Boolean(currentItem.hadMistake) || currentItem.state === 'incorrect';
       const updatedCharacters = [...state.characters];
       updatedCharacters[state.currentIndex] = {
         char: expectedChar,
@@ -355,7 +367,7 @@ export function processKeystroke(
         totalKeystrokes: updatedTotalKeystrokes,
         correctStrokes: state.correctStrokes + 1,
         lastKeystrokeTime: timestamp,
-        accumulatedActiveTimeMs: newAccumulatedActiveMs,
+        accumulatedActiveTimeMs: isAlreadyBlocked ? (state.accumulatedActiveTimeMs ?? 0) : newAccumulatedActiveMs,
       };
     }
 
@@ -443,7 +455,7 @@ export function processKeystroke(
       totalKeystrokes: updatedTotalKeystrokes,
       incorrectStrokes: state.incorrectStrokes + 1,
       lastKeystrokeTime: timestamp,
-      accumulatedActiveTimeMs: newAccumulatedActiveMs,
+      accumulatedActiveTimeMs: shouldStop ? (state.accumulatedActiveTimeMs ?? 0) : newAccumulatedActiveMs,
     };
   }
 
@@ -496,6 +508,14 @@ export function tickTimer(
     return state;
   }
 
+  // If blocked on an incorrect character in Stop on Error mode, timer is frozen
+  const isBlocked =
+    state.currentIndex < state.characters.length &&
+    state.characters[state.currentIndex]?.state === 'incorrect';
+  if (isBlocked) {
+    return state;
+  }
+
   // In Words, Characters, or Paragraph mode, test completion is determined by reaching the target
   if (
     state.testType === 'words' ||
@@ -534,11 +554,26 @@ export function calculateCurrentMetrics(
   let elapsedSeconds: number = 0;
   let remainingSeconds: number = duration;
 
+  const isBlocked =
+    state.currentIndex < state.characters.length &&
+    characters[state.currentIndex]?.state === 'incorrect';
+
   if (status === 'running' && startTime !== null) {
-    const now = currentTimestamp ?? (typeof performance !== 'undefined' ? performance.now() : Date.now());
-    const rawElapsed = Math.max(0, (now - startTime) / 1000);
-    elapsedSeconds = isCountMode ? rawElapsed : Math.min(duration, rawElapsed);
-    remainingSeconds = Math.max(0, duration - elapsedSeconds);
+    if (isBlocked) {
+      const activeMs = state.accumulatedActiveTimeMs ?? 0;
+      const rawElapsed = activeMs / 1000;
+      elapsedSeconds = isCountMode ? rawElapsed : Math.min(duration, rawElapsed);
+      remainingSeconds = Math.max(0, duration - elapsedSeconds);
+    } else {
+      const rawElapsed =
+        currentTimestamp !== undefined
+          ? Math.max(0, (currentTimestamp - startTime) / 1000)
+          : (state.accumulatedActiveTimeMs !== undefined
+              ? state.accumulatedActiveTimeMs / 1000
+              : Math.max(0, ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime) / 1000));
+      elapsedSeconds = isCountMode ? rawElapsed : Math.min(duration, rawElapsed);
+      remainingSeconds = Math.max(0, duration - elapsedSeconds);
+    }
   } else if (status === 'completed' && startTime !== null && endTime !== null) {
     const rawElapsed = Math.max(0, (endTime - startTime) / 1000);
     elapsedSeconds = isCountMode ? rawElapsed : Math.min(duration, rawElapsed);
@@ -557,7 +592,7 @@ export function calculateCurrentMetrics(
   }
 
   // If the current character is blocked in incorrect state, count it as an uncorrected error
-  if (state.currentIndex < state.characters.length && characters[state.currentIndex]?.state === 'incorrect') {
+  if (isBlocked) {
     incorrectCharacters++;
   }
 
@@ -567,14 +602,20 @@ export function calculateCurrentMetrics(
 
   // Effective typed keystrokes for WPM:
   // Repeated wrong key presses while blocked on an error do not advance the passage
-  // or inflate WPM. Effective progression keystrokes cannot exceed correct strokes + uncorrected errors.
-  const effectiveWpmKeystrokes = Math.min(
-    totalKeystrokes,
-    Math.max(0, state.correctStrokes + uncorrectedErrors)
-  );
+  // or inflate WPM. Effective progression keystrokes cannot exceed correct strokes.
+  const effectiveWpmKeystrokes = isBlocked
+    ? state.correctStrokes
+    : Math.min(
+        totalKeystrokes,
+        Math.max(0, state.correctStrokes + uncorrectedErrors)
+      );
 
   const grossWPM = calculateGrossWPM(effectiveWpmKeystrokes, elapsedSeconds);
-  const netWPM = calculateNetWPM(effectiveWpmKeystrokes, uncorrectedErrors, elapsedSeconds);
+  const netWPM = calculateNetWPM(
+    effectiveWpmKeystrokes,
+    isBlocked ? Math.max(0, uncorrectedErrors - 1) : uncorrectedErrors,
+    elapsedSeconds
+  );
   const accuracy = calculateAccuracy(correctCharacters, totalProcessed);
 
   return {

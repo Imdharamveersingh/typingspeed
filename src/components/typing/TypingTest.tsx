@@ -106,6 +106,28 @@ interface TestToolbarProps {
   onCompleteTest: () => void;
 }
 
+const DropdownChevron = React.memo(function DropdownChevron() {
+  return (
+    <svg
+      className="pill-chevron pill-arrow"
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M2.5 4.5L6 8L9.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+});
+
 /**
  * Isolated Compact Toolbar Component — memoized so all 6 buttons and popups skip rendering during active typing
  */
@@ -153,9 +175,11 @@ const TestToolbar = React.memo(function TestToolbar({
           aria-expanded={activeDropdown === 'type'}
           title="Select test type"
         >
-          <span className="control-label">TYPE</span>
-          <span className="control-value">{testTypeLabel}</span>
-          <span className="pill-arrow" aria-hidden="true">▾</span>
+          <span className="control-label">Test Type</span>
+          <span className="control-select-pill">
+            <span className="control-value">{testTypeLabel}</span>
+            <DropdownChevron />
+          </span>
         </button>
 
         {activeDropdown === 'type' && (
@@ -256,8 +280,10 @@ const TestToolbar = React.memo(function TestToolbar({
           title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
         >
           <span className="control-label">{targetLabel.prefix}</span>
-          <span className="control-value">{targetLabel.value}</span>
-          {testMode !== 'exam' && <span className="pill-arrow" aria-hidden="true">▾</span>}
+          <span className="control-select-pill">
+            <span className="control-value">{targetLabel.value}</span>
+            {testMode !== 'exam' && <DropdownChevron />}
+          </span>
         </button>
 
         {activeDropdown === 'target' && testMode !== 'exam' && (
@@ -318,9 +344,11 @@ const TestToolbar = React.memo(function TestToolbar({
           aria-expanded={activeDropdown === 'language'}
           title="Select language"
         >
-          <span className="control-label">LANG</span>
-          <span className="control-value">{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
-          <span className="pill-arrow" aria-hidden="true">▾</span>
+          <span className="control-label">Language</span>
+          <span className="control-select-pill">
+            <span className="control-value">{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
+            <DropdownChevron />
+          </span>
         </button>
 
         {activeDropdown === 'language' && (
@@ -360,9 +388,11 @@ const TestToolbar = React.memo(function TestToolbar({
           aria-expanded={activeDropdown === 'difficulty'}
           title="Select difficulty"
         >
-          <span className="control-label">DIFFICULTY</span>
-          <span className="control-value">{difficultyLabel}</span>
-          <span className="pill-arrow" aria-hidden="true">▾</span>
+          <span className="control-label">Difficulty</span>
+          <span className="control-select-pill">
+            <span className="control-value">{difficultyLabel}</span>
+            <DropdownChevron />
+          </span>
         </button>
 
         {activeDropdown === 'difficulty' && (
@@ -894,16 +924,16 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   // Synchronized target count and label for secondary toolbar pill
   const targetLabel = useMemo(() => {
     if (testMode === 'exam') {
-      return { prefix: 'TIME', value: formatDuration(selectedExamProfile.duration) };
+      return { prefix: 'Time', value: formatDuration(selectedExamProfile.duration) };
     }
     if (effectiveTestType === 'words') {
-      return { prefix: 'WORDS', value: `${selectedWordTarget}` };
+      return { prefix: 'Words', value: `${selectedWordTarget}` };
     }
     if (effectiveTestType === 'characters') {
-      return { prefix: 'CHARS', value: `${selectedCharTarget}` };
+      return { prefix: 'Chars', value: `${selectedCharTarget}` };
     }
     const match = DURATIONS.find((d) => d.value === state.duration);
-    return { prefix: 'TIME', value: match ? match.label : `${state.duration}s` };
+    return { prefix: 'Time', value: match ? match.label : `${state.duration}s` };
   }, [testMode, effectiveTestType, selectedWordTarget, selectedCharTarget, selectedExamProfile.duration, state.duration]);
 
   const testTypeLabel = useMemo(() => {
