@@ -47,15 +47,20 @@ export const MetricsBar: React.FC<MetricsBarProps> = React.memo(({
       </div>
 
       {/* 5. Errors — always displayed, starts at 0, updates visibly when wrong key pressed */}
-      <div
-        className={`metric-card ${metrics.uncorrectedErrors > 0 ? 'metric-errors' : ''}`}
-        data-testid="metric-errors"
-      >
-        <div className={`metric-value ${metrics.uncorrectedErrors > 0 ? 'error' : ''}`}>
-          {metrics.uncorrectedErrors}
-        </div>
-        <div className="metric-label">Errors</div>
-      </div>
+      {(() => {
+        const displayErrors = metrics.errors ?? metrics.uncorrectedErrors;
+        return (
+          <div
+            className={`metric-card ${displayErrors > 0 ? 'metric-errors' : ''}`}
+            data-testid="metric-errors"
+          >
+            <div className={`metric-value ${displayErrors > 0 ? 'error' : ''}`}>
+              {displayErrors}
+            </div>
+            <div className="metric-label">Errors</div>
+          </div>
+        );
+      })()}
 
       {/* 6. Target Progress — strictly shown only in Words or Characters mode */}
       {targetProgress && (

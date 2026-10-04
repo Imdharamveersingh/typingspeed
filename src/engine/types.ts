@@ -43,6 +43,7 @@ export interface TypingMetrics {
   extraCharacters: number;
   totalKeystrokes: number;
   uncorrectedErrors: number;
+  errors?: number;
 }
 
 export interface TypingState {

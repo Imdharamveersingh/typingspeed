@@ -196,7 +196,7 @@ const TestToolbar = React.memo(function TestToolbar({
                 <div className="item-title">Time Test</div>
                 <div className="item-subtitle">Timed speed challenge (15s, 30s, 60s, 3m, 5m, 10m)</div>
               </div>
-              {testMode === 'standard' && testType === 'time' && <span className="item-check">✓</span>}
+              <span className={`item-radio ${testMode === 'standard' && testType === 'time' ? 'selected' : ''}`} aria-hidden="true" />
             </button>
 
             <button
@@ -210,7 +210,7 @@ const TestToolbar = React.memo(function TestToolbar({
                 <div className="item-title">Words Test</div>
                 <div className="item-subtitle">Fixed target word count (25, 50, 100, 250, 500)</div>
               </div>
-              {testMode === 'standard' && testType === 'words' && <span className="item-check">✓</span>}
+              <span className={`item-radio ${testMode === 'standard' && testType === 'words' ? 'selected' : ''}`} aria-hidden="true" />
             </button>
 
             <button
@@ -224,7 +224,7 @@ const TestToolbar = React.memo(function TestToolbar({
                 <div className="item-title">Paragraph Test</div>
                 <div className="item-subtitle">Continuous everyday readable paragraph</div>
               </div>
-              {testMode === 'standard' && testType === 'paragraph' && <span className="item-check">✓</span>}
+              <span className={`item-radio ${testMode === 'standard' && testType === 'paragraph' ? 'selected' : ''}`} aria-hidden="true" />
             </button>
 
             <button
@@ -238,7 +238,7 @@ const TestToolbar = React.memo(function TestToolbar({
                 <div className="item-title">Characters Test</div>
                 <div className="item-subtitle">Fixed character volume (100, 250, 500, 1000, 2000)</div>
               </div>
-              {testMode === 'standard' && testType === 'characters' && <span className="item-check">✓</span>}
+              <span className={`item-radio ${testMode === 'standard' && testType === 'characters' ? 'selected' : ''}`} aria-hidden="true" />
             </button>
 
             <div className="dropdown-section-title" data-testid="mode-exam-btn">Gov. Exam Simulations</div>
@@ -260,7 +260,7 @@ const TestToolbar = React.memo(function TestToolbar({
                       {p.minimumAccuracy ? ` • ${p.minimumAccuracy}% min acc` : ''}
                     </div>
                   </div>
-                  {isSelected && <span className="item-check">✓</span>}
+                  <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
                 </button>
               );
             })}
@@ -289,46 +289,55 @@ const TestToolbar = React.memo(function TestToolbar({
         {activeDropdown === 'target' && testMode !== 'exam' && (
           <div className="toolbar-dropdown" role="menu">
             {(testType === 'time' || testType === 'paragraph') &&
-              DURATIONS.map((d) => (
-                <button
-                  key={d.value}
-                  type="button"
-                  role="menuitem"
-                  className={`toolbar-dropdown-item ${duration === d.value ? 'selected' : ''}`}
-                  onClick={() => onSelectDuration(d.value)}
-                >
-                  <span>{d.label}</span>
-                  {duration === d.value && <span className="item-check">✓</span>}
-                </button>
-              ))}
+              DURATIONS.map((d) => {
+                const isSelected = duration === d.value;
+                return (
+                  <button
+                    key={d.value}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => onSelectDuration(d.value)}
+                  >
+                    <span>{d.label}</span>
+                    <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
+                  </button>
+                );
+              })}
 
             {testType === 'words' &&
-              WORD_TARGETS.map((count) => (
-                <button
-                  key={count}
-                  type="button"
-                  role="menuitem"
-                  className={`toolbar-dropdown-item ${selectedWordTarget === count ? 'selected' : ''}`}
-                  onClick={() => onSelectWordTarget(count)}
-                >
-                  <span>{count} words</span>
-                  {selectedWordTarget === count && <span className="item-check">✓</span>}
-                </button>
-              ))}
+              WORD_TARGETS.map((count) => {
+                const isSelected = selectedWordTarget === count;
+                return (
+                  <button
+                    key={count}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => onSelectWordTarget(count)}
+                  >
+                    <span>{count} words</span>
+                    <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
+                  </button>
+                );
+              })}
 
             {testType === 'characters' &&
-              CHAR_TARGETS.map((count) => (
-                <button
-                  key={count}
-                  type="button"
-                  role="menuitem"
-                  className={`toolbar-dropdown-item ${selectedCharTarget === count ? 'selected' : ''}`}
-                  onClick={() => onSelectCharTarget(count)}
-                >
-                  <span>{count} chars</span>
-                  {selectedCharTarget === count && <span className="item-check">✓</span>}
-                </button>
-              ))}
+              CHAR_TARGETS.map((count) => {
+                const isSelected = selectedCharTarget === count;
+                return (
+                  <button
+                    key={count}
+                    type="button"
+                    role="menuitem"
+                    className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => onSelectCharTarget(count)}
+                  >
+                    <span>{count} chars</span>
+                    <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
+                  </button>
+                );
+              })}
           </div>
         )}
       </div>
@@ -361,7 +370,7 @@ const TestToolbar = React.memo(function TestToolbar({
               onClick={() => onSelectLanguage('en')}
             >
               <span>English</span>
-              {selectedLanguage === 'en' && <span className="item-check">✓</span>}
+              <span className={`item-radio ${selectedLanguage === 'en' ? 'selected' : ''}`} aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -371,7 +380,7 @@ const TestToolbar = React.memo(function TestToolbar({
               onClick={() => onSelectLanguage('hi')}
             >
               <span>हिंदी</span>
-              {selectedLanguage === 'hi' && <span className="item-check">✓</span>}
+              <span className={`item-radio ${selectedLanguage === 'hi' ? 'selected' : ''}`} aria-hidden="true" />
             </button>
           </div>
         )}
@@ -397,18 +406,21 @@ const TestToolbar = React.memo(function TestToolbar({
 
         {activeDropdown === 'difficulty' && (
           <div className="toolbar-dropdown" role="menu">
-            {DIFFICULTIES.map((d) => (
-              <button
-                key={d.value}
-                type="button"
-                role="menuitem"
-                className={`toolbar-dropdown-item ${selectedDifficulty === d.value ? 'selected' : ''}`}
-                onClick={() => onSelectDifficulty(d.value)}
-              >
-                <span>{d.label}</span>
-                {selectedDifficulty === d.value && <span className="item-check">✓</span>}
-              </button>
-            ))}
+            {DIFFICULTIES.map((d) => {
+              const isSelected = selectedDifficulty === d.value;
+              return (
+                <button
+                  key={d.value}
+                  type="button"
+                  role="menuitem"
+                  className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                  onClick={() => onSelectDifficulty(d.value)}
+                >
+                  <span>{d.label}</span>
+                  <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

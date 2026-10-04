@@ -29,6 +29,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 }) => {
   const analytics = useMemo(() => analyzeTypingResult(state), [state]);
   const { metrics, mostMistypedCharacters, mistakeDetails, hasMistakes } = analytics;
+  const displayErrors = metrics.errors ?? metrics.uncorrectedErrors;
 
   // Evaluate exam results if in exam practice mode
   const examEvaluation = useMemo(() => {
@@ -154,7 +155,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         <div className="result-context-line">
           <span>{formatDuration(state.duration)}</span>
           <span className="context-dot" aria-hidden="true">·</span>
-          <span>{metrics.uncorrectedErrors} {metrics.uncorrectedErrors === 1 ? 'error' : 'errors'}</span>
+          <span>{displayErrors} {displayErrors === 1 ? 'error' : 'errors'}</span>
           <span className="context-dot" aria-hidden="true">·</span>
           <span>{metrics.grossWPM} Gross WPM</span>
         </div>
@@ -302,8 +303,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             </div>
 
             <div className="result-item">
-              <div className="result-item-value" style={{ color: metrics.uncorrectedErrors > 0 ? 'var(--status-error)' : 'inherit' }}>
-                {metrics.uncorrectedErrors}
+              <div className="result-item-value" style={{ color: displayErrors > 0 ? 'var(--status-error)' : 'inherit' }}>
+                {displayErrors}
               </div>
               <div className="result-item-label">Errors</div>
             </div>

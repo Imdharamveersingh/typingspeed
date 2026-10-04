@@ -600,6 +600,16 @@ export function calculateCurrentMetrics(
   const totalProcessed = correctCharacters + incorrectCharacters + extraCount;
   const uncorrectedErrors = incorrectCharacters + extraCount;
 
+  // Total error positions / mistake characters recorded across the test
+  let totalMistakeCharacters = 0;
+  for (let i = 0; i < state.characters.length; i++) {
+    const item = state.characters[i];
+    if (item.hadMistake || item.state === 'incorrect' || item.state === 'corrected') {
+      totalMistakeCharacters++;
+    }
+  }
+  const errors = totalMistakeCharacters + extraCount;
+
   // Effective typed keystrokes for WPM:
   // Repeated wrong key presses while blocked on an error do not advance the passage
   // or inflate WPM. Effective progression keystrokes cannot exceed correct strokes.
@@ -629,6 +639,7 @@ export function calculateCurrentMetrics(
     extraCharacters: extraCount,
     totalKeystrokes,
     uncorrectedErrors,
+    errors,
   };
 }
 
