@@ -809,14 +809,24 @@ a:hover {
 /* Modern Rectangular Contextual Toolbar */
 .test-compact-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  flex-wrap: wrap;
-  column-gap: 16px;
-  row-gap: 10px;
+  flex-wrap: nowrap;
+  gap: 12px;
   margin-bottom: 20px;
   position: relative;
   z-index: 20;
+}
+
+.toolbar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.toolbar-group-action {
+  margin-left: 2px;
 }
 
 .toolbar-separator {
@@ -831,21 +841,45 @@ a:hover {
   background-color: rgba(255, 255, 255, 0.15);
 }
 
+.control-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+  margin-bottom: 5px;
+  line-height: 14px;
+  height: 14px;
+  white-space: nowrap;
+  padding-left: 2px;
+  user-select: none;
+}
+
+.control-label-spacer {
+  display: block;
+  height: 14px;
+  line-height: 14px;
+  margin-bottom: 5px;
+  visibility: hidden;
+  user-select: none;
+  pointer-events: none;
+}
+
 .toolbar-pill-wrapper {
   position: relative;
   display: inline-flex;
+  width: 100%;
 }
 
 .toolbar-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 4px;
+  padding: 0;
   background-color: transparent;
   color: var(--text-secondary);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: var(--text-xs);
   font-family: inherit;
   font-weight: var(--font-medium);
@@ -854,16 +888,7 @@ a:hover {
   user-select: none;
   line-height: 1;
   box-shadow: none;
-}
-
-.control-label {
-  font-size: 11.5px;
-  font-weight: 500;
-  text-transform: none;
-  color: var(--text-muted);
-  letter-spacing: 0.01em;
-  margin-right: 0;
-  white-space: nowrap;
+  width: 100%;
 }
 
 .control-select-pill {
@@ -871,13 +896,38 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 36px;
+  height: 38px;
   padding: 0 14px;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-medium, rgba(0, 0, 0, 0.16));
   border-radius: 10px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   transition: all var(--transition-fast);
+  width: 100%;
+}
+
+[data-testid="test-type-selector"] .control-select-pill {
+  min-width: 116px;
+}
+
+[data-testid="target-selector"] .control-select-pill {
+  min-width: 84px;
+}
+
+[data-testid="language-selector"] .control-select-pill {
+  min-width: 96px;
+}
+
+[data-testid="difficulty-selector"] .control-select-pill {
+  min-width: 106px;
+}
+
+[data-testid="settings-selector"] .control-select-pill {
+  min-width: 102px;
+}
+
+.toolbar-pill-reset .control-select-pill {
+  min-width: 90px;
 }
 
 [data-theme="dark"] .control-select-pill {
@@ -971,6 +1021,7 @@ a:hover {
   color: var(--accent-primary);
 }
 
+.pill-chevron.open,
 .toolbar-pill.active .pill-arrow,
 .toolbar-pill.active .pill-chevron {
   transform: rotate(180deg);
@@ -982,19 +1033,18 @@ a:hover {
 .toolbar-dropdown {
   position: absolute;
   top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-medium, rgba(0, 0, 0, 0.14));
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
-  padding: 6px 8px;
+  padding: 6px;
   z-index: 100;
   min-width: 170px;
   max-width: calc(100vw - 32px);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 [data-theme="dark"] .toolbar-dropdown {
@@ -1178,13 +1228,24 @@ a:hover {
   box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.3);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .test-compact-toolbar {
-    gap: var(--space-2);
+    flex-wrap: wrap;
+    column-gap: 10px;
+    row-gap: 12px;
   }
-  .toolbar-pill {
-    padding: 6px 12px;
-    min-height: 38px;
+}
+
+@media (max-width: 520px) {
+  .toolbar-group {
+    flex: 1 1 calc(50% - 8px);
+  }
+  .toolbar-group .control-select-pill {
+    min-width: 0;
+    width: 100%;
+  }
+  .toolbar-dropdown {
+    left: 0;
   }
   .toolbar-dropdown-item {
     min-height: 38px;

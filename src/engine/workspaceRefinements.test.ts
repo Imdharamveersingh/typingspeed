@@ -27,26 +27,30 @@ const hindiPassage: Passage = {
 };
 
 describe('Focused Refinement Pass: Active TypingSpeed Test Workspace', () => {
-  // TEST 1: Toolbar control spacing/rendering remains valid.
-  it('TEST 1: Toolbar control spacing/rendering remains valid', () => {
+  // TEST 1: Toolbar control spacing/rendering remains valid with label-above-button structure.
+  it('TEST 1: Toolbar control spacing/rendering remains valid with label-above-button structure', () => {
     const cssPath = path.resolve(__dirname, '../styles/globals.css');
     const css = fs.readFileSync(cssPath, 'utf-8');
 
-    // 1. Toolbar has spacious column and row gaps
-    expect(css).toMatch(/\.test-compact-toolbar\s*\{[^}]*column-gap:\s*16px/s);
-    expect(css).toMatch(/\.test-compact-toolbar\s*\{[^}]*row-gap:\s*10px/s);
+    // 1. Toolbar has desktop horizontal layout with gap
+    expect(css).toMatch(/\.test-compact-toolbar\s*\{[^}]*gap:\s*12px/s);
+    expect(css).toMatch(/\.test-compact-toolbar\s*\{[^}]*flex-wrap:\s*nowrap/s);
 
-    // 2. Control label has subtle distinct color and spacing
+    // 2. Toolbar groups stack vertically (label above button)
+    expect(css).toMatch(/\.toolbar-group\s*\{[^}]*flex-direction:\s*column/s);
+
+    // 3. Control label has subtle distinct color and spacing
     expect(css).toMatch(/\.control-label\s*\{[^}]*color:\s*var\(--text-muted\)/s);
 
-    // 3. Separator line between configuration dropdowns and action buttons
-    expect(css).toMatch(/\.toolbar-separator\s*\{/);
+    // 4. Spacer exists for baseline alignment of action buttons
+    expect(css).toMatch(/\.control-label-spacer\s*\{/);
 
-    // 4. Verify Toolbar structure in TypingTest.tsx
+    // 5. Verify Toolbar structure in TypingTest.tsx
     const typingTestPath = path.resolve(__dirname, '../components/typing/TypingTest.tsx');
     const typingTestContent = fs.readFileSync(typingTestPath, 'utf-8');
     expect(typingTestContent).toContain('Test Type');
-    expect(typingTestContent).toContain('toolbar-separator');
+    expect(typingTestContent).toContain('toolbar-group');
+    expect(typingTestContent).toContain('control-label-spacer');
     expect(typingTestContent).toContain('toolbar-pill-settings');
     expect(typingTestContent).toContain('toolbar-pill-reset');
   });

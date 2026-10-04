@@ -106,10 +106,10 @@ interface TestToolbarProps {
   onCompleteTest: () => void;
 }
 
-const DropdownChevron = React.memo(function DropdownChevron() {
+const DropdownChevron = React.memo(function DropdownChevron({ isOpen = false }: { isOpen?: boolean }) {
   return (
     <svg
-      className="pill-chevron pill-arrow"
+      className={`pill-chevron pill-arrow ${isOpen ? 'open' : ''}`}
       width="12"
       height="12"
       viewBox="0 0 12 12"
@@ -165,294 +165,307 @@ const TestToolbar = React.memo(function TestToolbar({
   return (
     <div className="test-compact-toolbar" ref={toolbarRef} role="toolbar" aria-label="Test configuration">
       {/* 1. Test Type Control (Time | Words | Paragraph | Characters) — FIRST */}
-      <div className="toolbar-pill-wrapper" data-testid="test-type-selector">
-        <button
-          type="button"
-          className={`toolbar-pill ${activeDropdown === 'type' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''}`}
-          onClick={() => setActiveDropdown((prev) => (prev === 'type' ? null : 'type'))}
-          aria-haspopup="true"
-          aria-expanded={activeDropdown === 'type'}
-          title="Select test type"
-        >
-          <span className="control-label">Test Type</span>
-          <span className="control-select-pill">
-            <span className="control-value">{testTypeLabel}</span>
-            <DropdownChevron />
-          </span>
-        </button>
+      <div className="toolbar-group" data-testid="test-type-selector">
+        <span className="control-label">Test Type</span>
+        <div className="toolbar-pill-wrapper">
+          <button
+            type="button"
+            className={`toolbar-pill ${activeDropdown === 'type' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'type' ? null : 'type'))}
+            aria-haspopup="true"
+            aria-expanded={activeDropdown === 'type'}
+            title="Select test type"
+          >
+            <span className="control-select-pill">
+              <span className="control-value">{testTypeLabel}</span>
+              <DropdownChevron isOpen={activeDropdown === 'type'} />
+            </span>
+          </button>
 
-        {activeDropdown === 'type' && (
-          <div className="toolbar-dropdown toolbar-dropdown-wide" role="menu">
-            <div className="dropdown-section-title">Standard Modes</div>
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="type-time-btn"
-              className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'time' ? 'selected' : ''}`}
-              onClick={() => onSelectTestType('time')}
-            >
-              <div>
-                <div className="item-title">Time Test</div>
-                <div className="item-subtitle">Timed speed challenge (15s, 30s, 60s, 3m, 5m, 10m)</div>
-              </div>
-              <span className={`item-radio ${testMode === 'standard' && testType === 'time' ? 'selected' : ''}`} aria-hidden="true" />
-            </button>
+          {activeDropdown === 'type' && (
+            <div className="toolbar-dropdown toolbar-dropdown-wide" role="menu">
+              <div className="dropdown-section-title">Standard Modes</div>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="type-time-btn"
+                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'time' ? 'selected' : ''}`}
+                onClick={() => onSelectTestType('time')}
+              >
+                <div>
+                  <div className="item-title">Time Test</div>
+                  <div className="item-subtitle">Timed speed challenge (15s, 30s, 60s, 3m, 5m, 10m)</div>
+                </div>
+                <span className={`item-radio ${testMode === 'standard' && testType === 'time' ? 'selected' : ''}`} aria-hidden="true" />
+              </button>
 
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="type-words-btn"
-              className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'words' ? 'selected' : ''}`}
-              onClick={() => onSelectTestType('words')}
-            >
-              <div>
-                <div className="item-title">Words Test</div>
-                <div className="item-subtitle">Fixed target word count (25, 50, 100, 250, 500)</div>
-              </div>
-              <span className={`item-radio ${testMode === 'standard' && testType === 'words' ? 'selected' : ''}`} aria-hidden="true" />
-            </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="type-words-btn"
+                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'words' ? 'selected' : ''}`}
+                onClick={() => onSelectTestType('words')}
+              >
+                <div>
+                  <div className="item-title">Words Test</div>
+                  <div className="item-subtitle">Fixed target word count (25, 50, 100, 250, 500)</div>
+                </div>
+                <span className={`item-radio ${testMode === 'standard' && testType === 'words' ? 'selected' : ''}`} aria-hidden="true" />
+              </button>
 
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="type-paragraph-btn"
-              className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'paragraph' ? 'selected' : ''}`}
-              onClick={() => onSelectTestType('paragraph')}
-            >
-              <div>
-                <div className="item-title">Paragraph Test</div>
-                <div className="item-subtitle">Continuous everyday readable paragraph</div>
-              </div>
-              <span className={`item-radio ${testMode === 'standard' && testType === 'paragraph' ? 'selected' : ''}`} aria-hidden="true" />
-            </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="type-paragraph-btn"
+                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'paragraph' ? 'selected' : ''}`}
+                onClick={() => onSelectTestType('paragraph')}
+              >
+                <div>
+                  <div className="item-title">Paragraph Test</div>
+                  <div className="item-subtitle">Continuous everyday readable paragraph</div>
+                </div>
+                <span className={`item-radio ${testMode === 'standard' && testType === 'paragraph' ? 'selected' : ''}`} aria-hidden="true" />
+              </button>
 
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="type-characters-btn"
-              className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'characters' ? 'selected' : ''}`}
-              onClick={() => onSelectTestType('characters')}
-            >
-              <div>
-                <div className="item-title">Characters Test</div>
-                <div className="item-subtitle">Fixed character volume (100, 250, 500, 1000, 2000)</div>
-              </div>
-              <span className={`item-radio ${testMode === 'standard' && testType === 'characters' ? 'selected' : ''}`} aria-hidden="true" />
-            </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="type-characters-btn"
+                className={`toolbar-dropdown-item ${testMode === 'standard' && testType === 'characters' ? 'selected' : ''}`}
+                onClick={() => onSelectTestType('characters')}
+              >
+                <div>
+                  <div className="item-title">Characters Test</div>
+                  <div className="item-subtitle">Fixed character volume (100, 250, 500, 1000, 2000)</div>
+                </div>
+                <span className={`item-radio ${testMode === 'standard' && testType === 'characters' ? 'selected' : ''}`} aria-hidden="true" />
+              </button>
 
-            <div className="dropdown-section-title" data-testid="mode-exam-btn">Gov. Exam Simulations</div>
-            {examProfiles.map((p) => {
-              const isSelected = testMode === 'exam' && selectedExamProfile.id === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  role="menuitem"
-                  data-testid={`exam-profile-${p.id}`}
-                  className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
-                  onClick={() => onSelectExamProfile(p)}
-                >
-                  <div>
-                    <div className="item-title">{p.name}</div>
-                    <div className="item-subtitle">
-                      {formatDuration(p.duration)} • Target {p.targetValue} WPM
-                      {p.minimumAccuracy ? ` • ${p.minimumAccuracy}% min acc` : ''}
+              <div className="dropdown-section-title" data-testid="mode-exam-btn">Gov. Exam Simulations</div>
+              {examProfiles.map((p) => {
+                const isSelected = testMode === 'exam' && selectedExamProfile.id === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="menuitem"
+                    data-testid={`exam-profile-${p.id}`}
+                    className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => onSelectExamProfile(p)}
+                  >
+                    <div>
+                      <div className="item-title">{p.name}</div>
+                      <div className="item-subtitle">
+                        {formatDuration(p.duration)} • Target {p.targetValue} WPM
+                        {p.minimumAccuracy ? ` • ${p.minimumAccuracy}% min acc` : ''}
+                      </div>
                     </div>
-                  </div>
-                  <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
-                </button>
-              );
-            })}
-          </div>
-        )}
+                    <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 2. Time / Target Count Control — SECOND */}
-      <div className="toolbar-pill-wrapper" data-testid="duration-selector">
-        <button
-          type="button"
-          className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
-          onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
-          disabled={testMode === 'exam'}
-          aria-haspopup="true"
-          aria-expanded={activeDropdown === 'target'}
-          title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
-        >
-          <span className="control-label">{targetLabel.prefix}</span>
-          <span className="control-select-pill">
-            <span className="control-value">{targetLabel.value}</span>
-            {testMode !== 'exam' && <DropdownChevron />}
-          </span>
-        </button>
+      <div className="toolbar-group" data-testid="duration-selector">
+        <span className="control-label">{targetLabel.prefix}</span>
+        <div className="toolbar-pill-wrapper">
+          <button
+            type="button"
+            className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
+            disabled={testMode === 'exam'}
+            aria-haspopup="true"
+            aria-expanded={activeDropdown === 'target'}
+            title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
+          >
+            <span className="control-select-pill">
+              <span className="control-value">{targetLabel.value}</span>
+              {testMode !== 'exam' && <DropdownChevron isOpen={activeDropdown === 'target'} />}
+            </span>
+          </button>
 
-        {activeDropdown === 'target' && testMode !== 'exam' && (
-          <div className="toolbar-dropdown" role="menu">
-            {(testType === 'time' || testType === 'paragraph') &&
-              DURATIONS.map((d) => {
-                const isSelected = duration === d.value;
+          {activeDropdown === 'target' && testMode !== 'exam' && (
+            <div className="toolbar-dropdown" role="menu">
+              {(testType === 'time' || testType === 'paragraph') &&
+                DURATIONS.map((d) => {
+                  const isSelected = duration === d.value;
+                  return (
+                    <button
+                      key={d.value}
+                      type="button"
+                      role="menuitem"
+                      className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => onSelectDuration(d.value)}
+                    >
+                      <span>{d.label}</span>
+                      <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+
+              {testType === 'words' &&
+                WORD_TARGETS.map((count) => {
+                  const isSelected = selectedWordTarget === count;
+                  return (
+                    <button
+                      key={count}
+                      type="button"
+                      role="menuitem"
+                      className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => onSelectWordTarget(count)}
+                    >
+                      <span>{count} words</span>
+                      <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+
+              {testType === 'characters' &&
+                CHAR_TARGETS.map((count) => {
+                  const isSelected = selectedCharTarget === count;
+                  return (
+                    <button
+                      key={count}
+                      type="button"
+                      role="menuitem"
+                      className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => onSelectCharTarget(count)}
+                    >
+                      <span>{count} chars</span>
+                      <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Language Control */}
+      <div className="toolbar-group" data-testid="language-selector">
+        <span className="control-label">Language</span>
+        <div className="toolbar-pill-wrapper">
+          <button
+            type="button"
+            className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'language' ? null : 'language'))}
+            aria-haspopup="true"
+            aria-expanded={activeDropdown === 'language'}
+            title="Select language"
+          >
+            <span className="control-select-pill">
+              <span className="control-value">{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
+              <DropdownChevron isOpen={activeDropdown === 'language'} />
+            </span>
+          </button>
+
+          {activeDropdown === 'language' && (
+            <div className="toolbar-dropdown" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="lang-en-btn"
+                className={`toolbar-dropdown-item ${selectedLanguage === 'en' ? 'selected' : ''}`}
+                onClick={() => onSelectLanguage('en')}
+              >
+                <span>English</span>
+                <span className={`item-radio ${selectedLanguage === 'en' ? 'selected' : ''}`} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="lang-hi-btn"
+                className={`toolbar-dropdown-item ${selectedLanguage === 'hi' ? 'selected' : ''}`}
+                onClick={() => onSelectLanguage('hi')}
+              >
+                <span>हिंदी</span>
+                <span className={`item-radio ${selectedLanguage === 'hi' ? 'selected' : ''}`} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 4. Difficulty Control */}
+      <div className="toolbar-group" data-testid="difficulty-selector">
+        <span className="control-label">Difficulty</span>
+        <div className="toolbar-pill-wrapper">
+          <button
+            type="button"
+            className={`toolbar-pill ${activeDropdown === 'difficulty' ? 'active' : ''}`}
+            onClick={() => setActiveDropdown((prev) => (prev === 'difficulty' ? null : 'difficulty'))}
+            aria-haspopup="true"
+            aria-expanded={activeDropdown === 'difficulty'}
+            title="Select difficulty"
+          >
+            <span className="control-select-pill">
+              <span className="control-value">{difficultyLabel}</span>
+              <DropdownChevron isOpen={activeDropdown === 'difficulty'} />
+            </span>
+          </button>
+
+          {activeDropdown === 'difficulty' && (
+            <div className="toolbar-dropdown" role="menu">
+              {DIFFICULTIES.map((d) => {
+                const isSelected = selectedDifficulty === d.value;
                 return (
                   <button
                     key={d.value}
                     type="button"
                     role="menuitem"
                     className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => onSelectDuration(d.value)}
+                    onClick={() => onSelectDifficulty(d.value)}
                   >
                     <span>{d.label}</span>
                     <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
                   </button>
                 );
               })}
-
-            {testType === 'words' &&
-              WORD_TARGETS.map((count) => {
-                const isSelected = selectedWordTarget === count;
-                return (
-                  <button
-                    key={count}
-                    type="button"
-                    role="menuitem"
-                    className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => onSelectWordTarget(count)}
-                  >
-                    <span>{count} words</span>
-                    <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
-                  </button>
-                );
-              })}
-
-            {testType === 'characters' &&
-              CHAR_TARGETS.map((count) => {
-                const isSelected = selectedCharTarget === count;
-                return (
-                  <button
-                    key={count}
-                    type="button"
-                    role="menuitem"
-                    className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => onSelectCharTarget(count)}
-                  >
-                    <span>{count} chars</span>
-                    <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
-                  </button>
-                );
-              })}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* 3. Language Control */}
-      <div className="toolbar-pill-wrapper" data-testid="language-selector">
-        <button
-          type="button"
-          className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''}`}
-          onClick={() => setActiveDropdown((prev) => (prev === 'language' ? null : 'language'))}
-          aria-haspopup="true"
-          aria-expanded={activeDropdown === 'language'}
-          title="Select language"
-        >
-          <span className="control-label">Language</span>
-          <span className="control-select-pill">
-            <span className="control-value">{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
-            <DropdownChevron />
-          </span>
-        </button>
-
-        {activeDropdown === 'language' && (
-          <div className="toolbar-dropdown" role="menu">
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="lang-en-btn"
-              className={`toolbar-dropdown-item ${selectedLanguage === 'en' ? 'selected' : ''}`}
-              onClick={() => onSelectLanguage('en')}
-            >
-              <span>English</span>
-              <span className={`item-radio ${selectedLanguage === 'en' ? 'selected' : ''}`} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="lang-hi-btn"
-              className={`toolbar-dropdown-item ${selectedLanguage === 'hi' ? 'selected' : ''}`}
-              onClick={() => onSelectLanguage('hi')}
-            >
-              <span>हिंदी</span>
-              <span className={`item-radio ${selectedLanguage === 'hi' ? 'selected' : ''}`} aria-hidden="true" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 4. Difficulty Control */}
-      <div className="toolbar-pill-wrapper" data-testid="difficulty-selector">
-        <button
-          type="button"
-          className={`toolbar-pill ${activeDropdown === 'difficulty' ? 'active' : ''}`}
-          onClick={() => setActiveDropdown((prev) => (prev === 'difficulty' ? null : 'difficulty'))}
-          aria-haspopup="true"
-          aria-expanded={activeDropdown === 'difficulty'}
-          title="Select difficulty"
-        >
-          <span className="control-label">Difficulty</span>
-          <span className="control-select-pill">
-            <span className="control-value">{difficultyLabel}</span>
-            <DropdownChevron />
-          </span>
-        </button>
-
-        {activeDropdown === 'difficulty' && (
-          <div className="toolbar-dropdown" role="menu">
-            {DIFFICULTIES.map((d) => {
-              const isSelected = selectedDifficulty === d.value;
-              return (
-                <button
-                  key={d.value}
-                  type="button"
-                  role="menuitem"
-                  className={`toolbar-dropdown-item ${isSelected ? 'selected' : ''}`}
-                  onClick={() => onSelectDifficulty(d.value)}
-                >
-                  <span>{d.label}</span>
-                  <span className={`item-radio ${isSelected ? 'selected' : ''}`} aria-hidden="true" />
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Visual Separator between config dropdowns and action buttons */}
-      <div className="toolbar-separator" aria-hidden="true" />
 
       {/* 5. Settings Control — opens large modal */}
-      <div className="toolbar-pill-wrapper" data-testid="settings-selector">
-        <button
-          type="button"
-          className="toolbar-pill toolbar-pill-settings"
-          data-testid="settings-btn"
-          onClick={onOpenSettings}
-          title="Open Settings"
-          aria-haspopup="dialog"
-        >
-          <span className="control-select-pill">
-            <span className="control-value">⚙ Settings</span>
-          </span>
-        </button>
+      <div className="toolbar-group toolbar-group-action" data-testid="settings-selector">
+        <span className="control-label-spacer" aria-hidden="true" />
+        <div className="toolbar-pill-wrapper">
+          <button
+            type="button"
+            className="toolbar-pill toolbar-pill-settings"
+            data-testid="settings-btn"
+            onClick={onOpenSettings}
+            title="Open Settings"
+            aria-haspopup="dialog"
+          >
+            <span className="control-select-pill">
+              <span className="control-value">⚙ Settings</span>
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* 6. Retest Button */}
-      <button
-        type="button"
-        onClick={onRetest}
-        data-testid="retest-btn"
-        className="toolbar-pill toolbar-pill-reset"
-        title="Retest (Esc)"
-      >
-        <span className="control-select-pill">
-          <span className="control-value">↺ Retest</span>
-        </span>
-      </button>
+      <div className="toolbar-group toolbar-group-action">
+        <span className="control-label-spacer" aria-hidden="true" />
+        <div className="toolbar-pill-wrapper">
+          <button
+            type="button"
+            onClick={onRetest}
+            data-testid="retest-btn"
+            className="toolbar-pill toolbar-pill-reset"
+            title="Retest (Esc)"
+          >
+            <span className="control-select-pill">
+              <span className="control-value">↺ Retest</span>
+            </span>
+          </button>
+        </div>
+      </div>
 
       {/* Hidden test-mode and complete-test triggers for deterministic automated tests */}
       <button
