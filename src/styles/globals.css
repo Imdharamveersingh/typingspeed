@@ -1054,9 +1054,10 @@ a:hover {
 }
 
 .toolbar-dropdown-wide {
-  min-width: 280px;
-  max-width: min(350px, calc(100vw - 32px));
-  max-height: 330px;
+  min-width: 320px;
+  width: max-content;
+  max-width: min(390px, calc(100vw - 32px));
+  max-height: 360px;
   overflow-y: auto;
 }
 
@@ -1148,6 +1149,12 @@ a:hover {
   transition: all var(--transition-fast);
   font-family: inherit;
   min-height: 38px;
+  gap: 12px;
+}
+
+.toolbar-dropdown-item > div {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .toolbar-dropdown-item:hover {
@@ -1417,7 +1424,7 @@ a:hover {
 
 .typing-progress-bar-track {
   width: 100%;
-  height: 4px;
+  height: 6px;
   background-color: var(--border-subtle);
   border-radius: 9999px;
   overflow: hidden;
@@ -1481,7 +1488,7 @@ a:hover {
     margin: 2px auto 8px;
   }
   .typing-progress-bar-track {
-    height: 5px;
+    height: 6px;
   }
 }
 

@@ -221,7 +221,7 @@ describe('Corrected Typing Mistake Visual State + Result Legend', () => {
     state = processKeystroke(state, 'e', 1400); // corrected
 
     const metrics = calculateCurrentMetrics(state, 2000);
-    expect(metrics.accuracy).toBe(100); // uncorrected errors is 0, all processed characters are now correct
+    expect(metrics.accuracy).toBe(66.7); // 2 net correct out of 3 attempted characters (1 mistake was recorded and corrected)
     expect(metrics.correctCharacters).toBe(3);
     expect(state.incorrectStrokes).toBe(1); // raw keystroke mistake was preserved
   });

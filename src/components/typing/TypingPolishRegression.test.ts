@@ -109,8 +109,8 @@ describe('TypingSpeed UI Polish + Metrics + Backspace Progress Regressions', () 
       expect(cssContent).toMatch(/\.target-progress-value\s+\.target-den\s*\{[^}]*text-align:\s*center;/s);
     });
 
-    it('Typing progress bar track height is approximately 4px pill shape and centered', () => {
-      expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*height:\s*4px;/s);
+    it('Typing progress bar track height is refined (5-6px) pill shape and centered', () => {
+      expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*height:\s*6px;/s);
       expect(cssContent).toMatch(/\.typing-progress-bar-track\s*\{[^}]*border-radius:\s*9999px;/s);
       expect(cssContent).toMatch(/\.typing-progress-bar-wrapper\s*\{[^}]*max-width:\s*540px;/s);
     });

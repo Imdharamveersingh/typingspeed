@@ -597,7 +597,6 @@ export function calculateCurrentMetrics(
   }
 
   const extraCount = extraCharacters.length;
-  const totalProcessed = correctCharacters + incorrectCharacters + extraCount;
   const uncorrectedErrors = incorrectCharacters + extraCount;
 
   // Total error positions / mistake characters recorded across the test
@@ -626,7 +625,14 @@ export function calculateCurrentMetrics(
     isBlocked ? Math.max(0, uncorrectedErrors - 1) : uncorrectedErrors,
     elapsedSeconds
   );
-  const accuracy = calculateAccuracy(correctCharacters, totalProcessed);
+
+  // Canonical Accuracy Calculation:
+  // Accuracy accounts for all mistake characters (including those subsequently corrected).
+  // Total attempted characters includes all characters traversed up to currentIndex, plus
+  // any currently blocked mistake character at currentIndex and extra characters.
+  const attemptedCharacters = state.currentIndex + (isBlocked ? 1 : 0) + extraCount;
+  const netCorrect = Math.max(0, attemptedCharacters - errors);
+  const accuracy = calculateAccuracy(netCorrect, attemptedCharacters);
 
   return {
     grossWPM,
