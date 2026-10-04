@@ -166,9 +166,9 @@ const SpaceComponent = React.memo(
  * Computes visual line index and rolling offset from the active character's vertical position
  * relative to the first character of the passage.
  *
- * 5-Line Rolling Model:
- * - Line 0 (Visual line 1): offset = 0
- * - Line 1 (Visual line 2): offset = 0 (Line 1 remains visible above Line 2)
+ * 4-Line Rolling Model:
+ * - Line 0 (Visual line 1): offset = 0 (Lines 1-4 visible)
+ * - Line 1 (Visual line 2): offset = 0 (Lines 1-4 visible, Line 1 remains above Line 2)
  * - Line 2 (Visual line 3): offset = 1 * lineHeight (Line 1 rolls away, Line 2 is top, Line 3 active)
  * - Line 3 (Visual line 4): offset = 2 * lineHeight (Line 2 rolls away, Line 3 is top, Line 4 active)
  * - Line N: offset = max(0, lineIndex - 1) * lineHeight
@@ -185,7 +185,7 @@ export function calculateRollingOffset(
   // Visual line index (0-based) from rendered Y position with rounding tolerance
   const lineIndex = Math.max(0, Math.round(caretRelativeTop / lineHeight));
 
-  // 5-line rolling window: keep the previous completed line visible above the active line
+  // 4-line rolling window: keep the previous completed line visible above the active line
   const rollingLines = Math.max(0, lineIndex - 1);
   const targetOffset = rollingLines * lineHeight;
 

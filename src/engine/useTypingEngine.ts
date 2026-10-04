@@ -252,12 +252,21 @@ export function useTypingEngine({
   }, [completeTest]);
 
   const setDuration = useCallback((duration: TestDuration) => {
+    isComposingRef.current = false;
     activeAccumulatedMsRef.current = 0;
     lastKeystrokeTimeRef.current = null;
     lastTickTimeRef.current = null;
+    if (recentKeyTimerRef.current) {
+      clearTimeout(recentKeyTimerRef.current);
+      recentKeyTimerRef.current = null;
+    }
     if (timeModeCompletionTimerRef.current) {
       clearTimeout(timeModeCompletionTimerRef.current);
       timeModeCompletionTimerRef.current = null;
+    }
+    setRecentKey(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
     }
     const current = stateRef.current;
     const updated = createInitialState(current.passage, duration, current.testType, current.targetCount);
@@ -270,12 +279,21 @@ export function useTypingEngine({
   }, [focusTypingArea]);
 
   const setPassage = useCallback((passage: Passage, testType?: TestType, targetCount?: number) => {
+    isComposingRef.current = false;
     activeAccumulatedMsRef.current = 0;
     lastKeystrokeTimeRef.current = null;
     lastTickTimeRef.current = null;
+    if (recentKeyTimerRef.current) {
+      clearTimeout(recentKeyTimerRef.current);
+      recentKeyTimerRef.current = null;
+    }
     if (timeModeCompletionTimerRef.current) {
       clearTimeout(timeModeCompletionTimerRef.current);
       timeModeCompletionTimerRef.current = null;
+    }
+    setRecentKey(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
     }
     const current = stateRef.current;
     const updated = createInitialState(
@@ -293,12 +311,21 @@ export function useTypingEngine({
   }, [focusTypingArea]);
 
   const setTestType = useCallback((testType: TestType, targetCount?: number) => {
+    isComposingRef.current = false;
     activeAccumulatedMsRef.current = 0;
     lastKeystrokeTimeRef.current = null;
     lastTickTimeRef.current = null;
+    if (recentKeyTimerRef.current) {
+      clearTimeout(recentKeyTimerRef.current);
+      recentKeyTimerRef.current = null;
+    }
     if (timeModeCompletionTimerRef.current) {
       clearTimeout(timeModeCompletionTimerRef.current);
       timeModeCompletionTimerRef.current = null;
+    }
+    setRecentKey(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
     }
     const current = stateRef.current;
     const updated = createInitialState(current.passage, current.duration, testType, targetCount);

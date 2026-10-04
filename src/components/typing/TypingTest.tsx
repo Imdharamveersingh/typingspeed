@@ -135,7 +135,7 @@ const TestToolbar = React.memo(function TestToolbar({
   toolbarRef,
   activeDropdown,
   setActiveDropdown,
-  isRunning,
+  isRunning: _isRunning,
   testMode,
   testType,
   testTypeLabel,
@@ -170,7 +170,6 @@ const TestToolbar = React.memo(function TestToolbar({
           type="button"
           className={`toolbar-pill ${activeDropdown === 'type' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''}`}
           onClick={() => setActiveDropdown((prev) => (prev === 'type' ? null : 'type'))}
-          disabled={isRunning}
           aria-haspopup="true"
           aria-expanded={activeDropdown === 'type'}
           title="Select test type"
@@ -274,7 +273,7 @@ const TestToolbar = React.memo(function TestToolbar({
           type="button"
           className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
           onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
-          disabled={isRunning || testMode === 'exam'}
+          disabled={testMode === 'exam'}
           aria-haspopup="true"
           aria-expanded={activeDropdown === 'target'}
           title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
@@ -348,7 +347,6 @@ const TestToolbar = React.memo(function TestToolbar({
           type="button"
           className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''}`}
           onClick={() => setActiveDropdown((prev) => (prev === 'language' ? null : 'language'))}
-          disabled={isRunning}
           aria-haspopup="true"
           aria-expanded={activeDropdown === 'language'}
           title="Select language"
@@ -392,7 +390,6 @@ const TestToolbar = React.memo(function TestToolbar({
           type="button"
           className={`toolbar-pill ${activeDropdown === 'difficulty' ? 'active' : ''}`}
           onClick={() => setActiveDropdown((prev) => (prev === 'difficulty' ? null : 'difficulty'))}
-          disabled={isRunning}
           aria-haspopup="true"
           aria-expanded={activeDropdown === 'difficulty'}
           title="Select difficulty"
@@ -424,6 +421,9 @@ const TestToolbar = React.memo(function TestToolbar({
           </div>
         )}
       </div>
+
+      {/* Visual Separator between config dropdowns and action buttons */}
+      <div className="toolbar-separator" aria-hidden="true" />
 
       {/* 5. Settings Control — opens large modal */}
       <div className="toolbar-pill-wrapper" data-testid="settings-selector">
@@ -726,7 +726,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, createPassage, selectedLanguage, selectedDifficulty, setPassage, restart]);
 
   const handleSelectLanguage = useCallback((lang: TypingLanguage) => {
-    if (lang === selectedLanguage || state.status === 'running') return;
     setSelectedLanguage(lang);
     if (testMode === 'exam') {
       setActiveDropdown(null);
@@ -747,7 +746,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, testType, target);
     setActiveDropdown(null);
     restart();
-  }, [selectedLanguage, state.status, state.duration, testMode, testType, selectedWordTarget, selectedCharTarget, selectedDifficulty, createPassage, setPassage, restart]);
+  }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectDifficulty = useCallback((diff: TestDifficulty) => {
     setSelectedDifficulty(diff);

@@ -83,9 +83,11 @@ export const TypingProgressBar: React.FC<TypingProgressBarProps> = React.memo(({
     targetProgress,
   });
 
+  const isWaveActive = status === 'running' && percentage > 0;
+
   return (
     <div
-      className="typing-progress-bar-wrapper"
+      className={`typing-progress-bar-wrapper ${isWaveActive ? 'is-animating' : ''}`}
       role="progressbar"
       aria-valuenow={Math.round(percentage)}
       aria-valuemin={0}
@@ -95,9 +97,11 @@ export const TypingProgressBar: React.FC<TypingProgressBarProps> = React.memo(({
     >
       <div className="typing-progress-bar-track">
         <div
-          className="typing-progress-bar-fill"
+          className={`typing-progress-bar-fill ${isWaveActive ? 'wave-active' : ''}`}
           style={{ width: `${percentage}%` }}
-        />
+        >
+          <div className="typing-progress-wave-layer" aria-hidden="true" />
+        </div>
       </div>
     </div>
   );
