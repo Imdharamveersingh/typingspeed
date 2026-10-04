@@ -1,6 +1,7 @@
 import {
   CharacterItem,
   Passage,
+  PerformanceSample,
   TestDuration,
   TestType,
   TypingMetrics,
@@ -125,6 +126,7 @@ export function createInitialState(
     incorrectStrokes: 0,
     lastKeystrokeTime: null,
     accumulatedActiveTimeMs: 0,
+    performanceSnapshots: [],
   };
 }
 
@@ -138,7 +140,7 @@ export interface TypingEngineOptions {
 /**
  * Pure state reducer processing a single keystroke or character input event.
  */
-export function processKeystroke(
+function processKeystrokeInternal(
   initialState: TypingState,
   key: string,
   timestamp: number,
@@ -213,6 +215,7 @@ export function processKeystroke(
         char: currentChar.char,
         state: 'untyped',
         typedChar: undefined,
+        mistypedChar: currentChar.mistypedChar ?? currentChar.typedChar,
         pendingComposition: undefined,
         hadMistake: currentChar.hadMistake,
       };
@@ -235,6 +238,7 @@ export function processKeystroke(
       char: prevChar.char,
       state: 'untyped',
       typedChar: undefined,
+      mistypedChar: prevChar.mistypedChar ?? prevChar.typedChar,
       pendingComposition: undefined,
       hadMistake: prevChar.hadMistake,
     };
@@ -312,6 +316,7 @@ export function processKeystroke(
           updatedCharacters[i] = {
             ...updatedCharacters[i],
             state: 'incorrect',
+            mistypedChar: updatedCharacters[i].mistypedChar ?? ' ',
             hadMistake: true,
           };
           skippedMistakes++;
@@ -346,6 +351,7 @@ export function processKeystroke(
         char: expectedChar,
         state: wasMistake ? 'corrected' : 'correct',
         typedChar: candidate,
+        mistypedChar: currentItem.mistypedChar,
         pendingComposition: undefined,
         hadMistake: wasMistake,
       };
@@ -378,6 +384,7 @@ export function processKeystroke(
         char: expectedChar,
         state: 'untyped',
         typedChar: candidate,
+        mistypedChar: currentItem.mistypedChar,
         pendingComposition: candidate,
         hadMistake: currentItem.hadMistake,
       };
@@ -404,6 +411,7 @@ export function processKeystroke(
           char: expectedChar,
           state: 'incorrect',
           typedChar: pending,
+          mistypedChar: currentItem.mistypedChar ?? pending,
           pendingComposition: undefined,
           hadMistake: true,
         };
@@ -431,6 +439,7 @@ export function processKeystroke(
       char: expectedChar,
       state: 'incorrect',
       typedChar: candidate,
+      mistypedChar: currentItem.mistypedChar ?? candidate,
       pendingComposition: undefined,
       hadMistake: true,
     };
@@ -468,7 +477,28 @@ export function processKeystroke(
     totalKeystrokes: updatedTotalKeystrokes,
     incorrectStrokes: state.incorrectStrokes + 1,
     lastKeystrokeTime: timestamp,
-    accumulatedActiveTimeMs: newAccumulatedActiveMs,
+  };
+}
+
+/**
+ * Pure state reducer processing a single keystroke or character input event.
+ * Automatically samples typing performance history over time.
+ */
+export function processKeystroke(
+  initialState: TypingState,
+  key: string,
+  timestamp: number,
+  options: TypingEngineOptions = {}
+): TypingState {
+  const nextState = processKeystrokeInternal(initialState, key, timestamp, options);
+  if (nextState === initialState) {
+    return nextState;
+  }
+  const isCompleted = nextState.status === 'completed';
+  const snapshots = recordPerformanceSample(nextState, timestamp, isCompleted);
+  return {
+    ...nextState,
+    performanceSnapshots: snapshots,
   };
 }
 
@@ -530,14 +560,22 @@ export function tickTimer(
   const activeElapsed = getActiveTypingSeconds(state, currentTimestamp);
 
   if (activeElapsed >= state.duration || elapsedMs >= durationMs) {
-    return {
+    const completedState: TypingState = {
       ...state,
       status: 'completed',
       endTime: currentTimestamp,
     };
+    return {
+      ...completedState,
+      performanceSnapshots: recordPerformanceSample(completedState, currentTimestamp, true),
+    };
   }
 
-  return state;
+  const snapshots = recordPerformanceSample(state, currentTimestamp, false);
+  return {
+    ...state,
+    performanceSnapshots: snapshots,
+  };
 }
 
 /**
@@ -650,4 +688,50 @@ export function calculateCurrentMetrics(
 }
 
 export const computeMetrics = calculateCurrentMetrics;
+
+/**
+ * Records a performance sample for the typing test history.
+ * Samples are recorded at start (0s), every ~1.0s of active time, and at test completion.
+ */
+export function recordPerformanceSample(
+  state: TypingState,
+  currentTimestamp: number,
+  forceSample = false
+): PerformanceSample[] {
+  const existing = state.performanceSnapshots ? [...state.performanceSnapshots] : [];
+  if (state.startTime === null) return existing;
+
+  const currentElapsed = getActiveTypingSeconds(state, currentTimestamp);
+
+  // If no sample yet, record initial 0s baseline
+  if (existing.length === 0) {
+    existing.push({
+      timestamp: state.startTime,
+      elapsedSeconds: 0,
+      grossWpm: 0,
+      netWpm: 0,
+      accuracy: 100,
+      errors: 0,
+    });
+  }
+
+  const lastSample = existing[existing.length - 1];
+  const deltaFromLast = currentElapsed - lastSample.elapsedSeconds;
+
+  if (forceSample || deltaFromLast >= 1.0 || (state.status === 'completed' && deltaFromLast >= 0.2)) {
+    const metrics = calculateCurrentMetrics(state, currentTimestamp);
+    if (deltaFromLast > 0 || forceSample) {
+      existing.push({
+        timestamp: currentTimestamp,
+        elapsedSeconds: Math.max(0, Math.round(currentElapsed * 10) / 10),
+        grossWpm: metrics.grossWPM,
+        netWpm: metrics.netWPM,
+        accuracy: metrics.accuracy,
+        errors: metrics.errors ?? 0,
+      });
+    }
+  }
+
+  return existing;
+}
 

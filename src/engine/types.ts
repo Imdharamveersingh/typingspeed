@@ -10,12 +10,22 @@ export interface CharacterItem {
   char: string;
   state: CharacterState;
   typedChar?: string;
+  mistypedChar?: string;
   pendingComposition?: string;
   hadMistake?: boolean;
 }
 
 export interface ExtraCharacterItem {
   char: string;
+}
+
+export interface PerformanceSample {
+  timestamp: number;
+  elapsedSeconds: number;
+  grossWpm: number;
+  netWpm: number;
+  accuracy: number;
+  errors: number;
 }
 
 export type TestType = 'time' | 'words' | 'characters' | 'paragraph';
@@ -62,4 +72,5 @@ export interface TypingState {
   incorrectStrokes: number;
   lastKeystrokeTime?: number | null;
   accumulatedActiveTimeMs?: number;
+  performanceSnapshots?: PerformanceSample[];
 }

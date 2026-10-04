@@ -13,6 +13,7 @@ import {
   createInitialState,
   processInputText,
   processKeystroke,
+  recordPerformanceSample,
   TypingEngineOptions,
 } from './typingEngine';
 import { isControlKey } from './textUtils';
@@ -142,6 +143,7 @@ export function useTypingEngine({
       status: 'completed',
       endTime: effectiveNow,
     };
+    updated.performanceSnapshots = recordPerformanceSample(updated, effectiveNow, true);
     stateRef.current = updated;
     setState(updated);
     setMetrics(calculateCurrentMetrics(updated, effectiveNow));
@@ -179,6 +181,7 @@ export function useTypingEngine({
           status: 'completed',
           endTime: effectiveTime,
         };
+        finalState.performanceSnapshots = recordPerformanceSample(finalState, effectiveTime, true);
       }
 
       stateRef.current = finalState;
