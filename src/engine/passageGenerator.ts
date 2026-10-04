@@ -155,6 +155,9 @@ export function generateTestPassage({
       text: formattedText,
       language,
       difficulty,
+      includeCapitalLetters,
+      includeSpecialCharacters,
+      textSource,
     };
   }
 
@@ -194,6 +197,10 @@ export function generateTestPassage({
       text: generatedText,
       language,
       difficulty,
+      includeCapitalLetters,
+      includeSpecialCharacters,
+      textSource,
+      wordListSize,
     };
   }
 
@@ -221,6 +228,9 @@ export function generateTestPassage({
       text: generatedText,
       language,
       difficulty,
+      includeCapitalLetters,
+      includeSpecialCharacters,
+      textSource,
     };
   }
 
@@ -259,34 +269,61 @@ export function generateTestPassage({
     text: generatedText,
     language,
     difficulty,
+    includeCapitalLetters,
+    includeSpecialCharacters,
+    textSource,
+    wordListSize,
   };
 }
 
 /**
  * Dynamically appends additional text to a TypingState passage in Time mode
  * so that the user never runs out of text while the test is still running.
+ * Appended words are formatted with the exact same pipeline and active preferences stored on the passage.
  */
 export function appendPassageContent(
   state: TypingState,
   additionalWordCount: number = 80
 ): TypingState {
-  const language = state.passage.language;
-  const difficulty = state.passage.difficulty;
-  const sources = getSourceTexts(language, difficulty);
+  const {
+    language,
+    difficulty,
+    includeCapitalLetters = false,
+    includeSpecialCharacters = false,
+    textSource,
+    wordListSize = 'medium',
+  } = state.passage;
 
-  const allWords: string[] = [];
-  for (const text of sources) {
-    allWords.push(...text.split(/\s+/).filter(Boolean));
+  let rawWords: string[] = [];
+  if (language === 'en' && textSource === 'common') {
+    rawWords = buildCommonWords(
+      additionalWordCount,
+      wordListSize,
+      includeCapitalLetters,
+      includeSpecialCharacters
+    );
+  } else {
+    const sources = getSourceTexts(language, difficulty);
+    const allWords: string[] = [];
+    for (const text of sources) {
+      allWords.push(...text.split(/\s+/).filter(Boolean));
+    }
+    if (allWords.length === 0) return state;
+
+    const currentWords = state.passage.text.split(/\s+/).filter(Boolean).length;
+    for (let i = 0; i < additionalWordCount; i++) {
+      rawWords.push(allWords[(currentWords + i) % allWords.length]);
+    }
   }
-  if (allWords.length === 0) return state;
 
-  const currentWords = state.passage.text.split(/\s+/).filter(Boolean).length;
-  const newWords: string[] = [];
-  for (let i = 0; i < additionalWordCount; i++) {
-    newWords.push(allWords[(currentWords + i) % allWords.length]);
-  }
+  // Format all appended words using the exact canonical formatPassageText function
+  const formattedWords = rawWords
+    .map((w) => formatPassageText(w, language, includeCapitalLetters, includeSpecialCharacters))
+    .filter(Boolean);
 
-  const addedText = ' ' + newWords.join(' ');
+  if (formattedWords.length === 0) return state;
+
+  const addedText = ' ' + formattedWords.join(' ');
   const addedGraphemes = segmentGraphemes(addedText, language);
   const addedCharacters: CharacterItem[] = addedGraphemes.map((char) => ({
     char,
@@ -298,6 +335,8 @@ export function appendPassageContent(
     passage: {
       ...state.passage,
       text: state.passage.text + addedText,
+      includeCapitalLetters,
+      includeSpecialCharacters,
     },
     characters: [...state.characters, ...addedCharacters],
   };

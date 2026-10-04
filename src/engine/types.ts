@@ -40,6 +40,10 @@ export interface Passage {
   text: string;
   language: TypingLanguage;
   difficulty: 'easy' | 'medium' | 'hard';
+  includeCapitalLetters?: boolean;
+  includeSpecialCharacters?: boolean;
+  textSource?: 'common' | 'paragraph';
+  wordListSize?: 'small' | 'medium' | 'large';
 }
 
 export interface TypingMetrics {
