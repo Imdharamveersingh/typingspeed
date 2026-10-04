@@ -997,9 +997,30 @@ a:hover {
   color: var(--status-error, #dc2626);
 }
 
-.toolbar-pill:disabled {
-  opacity: 0.55;
+.toolbar-pill:disabled,
+.toolbar-pill.disabled {
+  opacity: 0.62;
   cursor: not-allowed;
+}
+
+.toolbar-pill:disabled .control-select-pill,
+.toolbar-pill.disabled .control-select-pill {
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.toolbar-pill:disabled:hover .control-select-pill,
+.toolbar-pill.disabled:hover .control-select-pill {
+  border-color: var(--border-medium, rgba(0, 0, 0, 0.16));
+  background-color: var(--bg-surface);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .toolbar-pill:disabled:hover .control-select-pill,
+[data-theme="dark"] .toolbar-pill.disabled:hover .control-select-pill {
+  border-color: rgba(255, 255, 255, 0.16);
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
 
 .pill-arrow,

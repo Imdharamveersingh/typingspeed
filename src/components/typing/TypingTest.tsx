@@ -131,11 +131,11 @@ const DropdownChevron = React.memo(function DropdownChevron({ isOpen = false }: 
 /**
  * Isolated Compact Toolbar Component — memoized so all 6 buttons and popups skip rendering during active typing
  */
-const TestToolbar = React.memo(function TestToolbar({
+export const TestToolbar = React.memo(function TestToolbar({
   toolbarRef,
   activeDropdown,
   setActiveDropdown,
-  isRunning: _isRunning,
+  isRunning,
   testMode,
   testType,
   testTypeLabel,
@@ -170,11 +170,15 @@ const TestToolbar = React.memo(function TestToolbar({
         <div className="toolbar-pill-wrapper">
           <button
             type="button"
-            className={`toolbar-pill ${activeDropdown === 'type' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'type' ? null : 'type'))}
+            className={`toolbar-pill ${activeDropdown === 'type' ? 'active' : ''} ${testMode === 'exam' ? 'exam-active' : ''} ${isRunning ? 'disabled' : ''}`}
+            onClick={() => {
+              if (isRunning) return;
+              setActiveDropdown((prev) => (prev === 'type' ? null : 'type'));
+            }}
+            disabled={isRunning}
             aria-haspopup="true"
             aria-expanded={activeDropdown === 'type'}
-            title="Select test type"
+            title={isRunning ? 'Configuration locked during active test' : 'Select test type'}
           >
             <span className="control-select-pill">
               <span className="control-value">{testTypeLabel}</span>
@@ -182,7 +186,7 @@ const TestToolbar = React.memo(function TestToolbar({
             </span>
           </button>
 
-          {activeDropdown === 'type' && (
+          {activeDropdown === 'type' && !isRunning && (
             <div className="toolbar-dropdown toolbar-dropdown-wide" role="menu">
               <div className="dropdown-section-title">Standard Modes</div>
               <button
@@ -275,12 +279,21 @@ const TestToolbar = React.memo(function TestToolbar({
         <div className="toolbar-pill-wrapper">
           <button
             type="button"
-            className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'target' ? null : 'target'))}
-            disabled={testMode === 'exam'}
+            className={`toolbar-pill ${activeDropdown === 'target' ? 'active' : ''} ${(isRunning || testMode === 'exam') ? 'disabled' : ''}`}
+            onClick={() => {
+              if (isRunning || testMode === 'exam') return;
+              setActiveDropdown((prev) => (prev === 'target' ? null : 'target'));
+            }}
+            disabled={isRunning || testMode === 'exam'}
             aria-haspopup="true"
             aria-expanded={activeDropdown === 'target'}
-            title={testMode === 'exam' ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}` : `Select target ${targetLabel.prefix.toLowerCase()}`}
+            title={
+              isRunning
+                ? 'Configuration locked during active test'
+                : testMode === 'exam'
+                ? `Exam duration: ${formatDuration(selectedExamProfile.duration)}`
+                : `Select target ${targetLabel.prefix.toLowerCase()}`
+            }
           >
             <span className="control-select-pill">
               <span className="control-value">{targetLabel.value}</span>
@@ -288,7 +301,7 @@ const TestToolbar = React.memo(function TestToolbar({
             </span>
           </button>
 
-          {activeDropdown === 'target' && testMode !== 'exam' && (
+          {activeDropdown === 'target' && !isRunning && testMode !== 'exam' && (
             <div className="toolbar-dropdown" role="menu">
               {(testType === 'time' || testType === 'paragraph') &&
                 DURATIONS.map((d) => {
@@ -351,11 +364,15 @@ const TestToolbar = React.memo(function TestToolbar({
         <div className="toolbar-pill-wrapper">
           <button
             type="button"
-            className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'language' ? null : 'language'))}
+            className={`toolbar-pill ${activeDropdown === 'language' ? 'active' : ''} ${isRunning ? 'disabled' : ''}`}
+            onClick={() => {
+              if (isRunning) return;
+              setActiveDropdown((prev) => (prev === 'language' ? null : 'language'));
+            }}
+            disabled={isRunning}
             aria-haspopup="true"
             aria-expanded={activeDropdown === 'language'}
-            title="Select language"
+            title={isRunning ? 'Configuration locked during active test' : 'Select language'}
           >
             <span className="control-select-pill">
               <span className="control-value">{selectedLanguage === 'hi' ? 'हिंदी' : 'English'}</span>
@@ -363,7 +380,7 @@ const TestToolbar = React.memo(function TestToolbar({
             </span>
           </button>
 
-          {activeDropdown === 'language' && (
+          {activeDropdown === 'language' && !isRunning && (
             <div className="toolbar-dropdown" role="menu">
               <button
                 type="button"
@@ -396,11 +413,15 @@ const TestToolbar = React.memo(function TestToolbar({
         <div className="toolbar-pill-wrapper">
           <button
             type="button"
-            className={`toolbar-pill ${activeDropdown === 'difficulty' ? 'active' : ''}`}
-            onClick={() => setActiveDropdown((prev) => (prev === 'difficulty' ? null : 'difficulty'))}
+            className={`toolbar-pill ${activeDropdown === 'difficulty' ? 'active' : ''} ${isRunning ? 'disabled' : ''}`}
+            onClick={() => {
+              if (isRunning) return;
+              setActiveDropdown((prev) => (prev === 'difficulty' ? null : 'difficulty'));
+            }}
+            disabled={isRunning}
             aria-haspopup="true"
             aria-expanded={activeDropdown === 'difficulty'}
-            title="Select difficulty"
+            title={isRunning ? 'Configuration locked during active test' : 'Select difficulty'}
           >
             <span className="control-select-pill">
               <span className="control-value">{difficultyLabel}</span>
@@ -408,7 +429,7 @@ const TestToolbar = React.memo(function TestToolbar({
             </span>
           </button>
 
-          {activeDropdown === 'difficulty' && (
+          {activeDropdown === 'difficulty' && !isRunning && (
             <div className="toolbar-dropdown" role="menu">
               {DIFFICULTIES.map((d) => {
                 const isSelected = selectedDifficulty === d.value;
@@ -512,21 +533,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const examProfiles = useMemo(() => getAllExamProfiles(), []);
 
-  const handleToggleKeyboard = useCallback(() => {
-    setShowKeyboard((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('typing_platform_keyboard_visible', String(next));
-      } catch {}
-      setSettings((current) => {
-        const updated = { ...current, keyboardVisible: next };
-        saveTypingSettings(updated);
-        return updated;
-      });
-      return next;
-    });
-  }, []);
-
   // Close open dropdown on outside click or Escape
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -613,6 +619,13 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     soundOptions,
   });
 
+  // Automatically close any open dropdown when test starts running
+  useEffect(() => {
+    if (state.status === 'running') {
+      setActiveDropdown(null);
+    }
+  }, [state.status]);
+
   // Hydrate user settings from localStorage safely after client mount (zero SSR mismatch)
   useEffect(() => {
     const loaded = loadTypingSettings();
@@ -674,6 +687,15 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const handleUpdateSettings = useCallback(
     (newSettings: Partial<TypingSettings>) => {
       setSettings((prev) => {
+        // Detect if any setting property actually changed from current settings
+        const hasActualChange = Object.entries(newSettings).some(([k, val]) => {
+          return (prev as unknown as Record<string, unknown>)[k] !== val;
+        });
+
+        if (!hasActualChange) {
+          return prev;
+        }
+
         const updated = { ...prev, ...newSettings };
         saveTypingSettings(updated);
 
@@ -681,10 +703,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           setShowKeyboard(newSettings.keyboardVisible);
         }
 
+        const targetLang = newSettings.language || updated.language || selectedLanguage;
         if (
           newSettings.language !== undefined &&
           newSettings.language !== selectedLanguage &&
-          state.status !== 'running' &&
           testMode !== 'exam'
         ) {
           setSelectedLanguage(newSettings.language);
@@ -700,7 +722,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
               : state.duration;
 
           const newPassage = generateTestPassage({
-            language: newSettings.language || updated.language || selectedLanguage,
+            language: targetLang,
             difficulty: selectedDifficulty,
             testType,
             targetCount: target,
@@ -711,12 +733,48 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           });
 
           setPassage(newPassage, testType, target);
+        } else if (state.status === 'running') {
+          // If test is RUNNING and an actual setting was changed, perform full test reset immediately
+          if (testMode === 'standard') {
+            const target =
+              testType === 'words'
+                ? selectedWordTarget
+                : testType === 'characters'
+                ? selectedCharTarget
+                : state.duration;
+
+            const newPassage = generateTestPassage({
+              language: targetLang,
+              difficulty: selectedDifficulty,
+              testType,
+              targetCount: target,
+              textSource: updated.textSource,
+              includeCapitalLetters: updated.includeCapitalLetters,
+              includeSpecialCharacters: updated.includeSpecialCharacters,
+              wordListSize: updated.wordListSize,
+            });
+
+            setPassage(newPassage, testType, target);
+          } else {
+            restart();
+          }
         }
 
         return updated;
       });
     },
-    [selectedLanguage, state.status, state.duration, testMode, testType, selectedWordTarget, selectedCharTarget, selectedDifficulty, setPassage]
+    [
+      selectedLanguage,
+      state.status,
+      state.duration,
+      testMode,
+      testType,
+      selectedWordTarget,
+      selectedCharTarget,
+      selectedDifficulty,
+      setPassage,
+      restart,
+    ]
   );
 
   const handleRetest = useCallback(() => {
@@ -734,11 +792,31 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         targetCount: target,
       });
       setPassage(newPassage, testType, target);
+    } else {
+      restart();
     }
-    restart();
   }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, createPassage, selectedLanguage, selectedDifficulty, setPassage, restart]);
 
+  const handleToggleKeyboard = useCallback(() => {
+    setShowKeyboard((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('typing_platform_keyboard_visible', String(next));
+      } catch {}
+      setSettings((current) => {
+        const updated = { ...current, keyboardVisible: next, showKeyboard: next };
+        saveTypingSettings(updated);
+        return updated;
+      });
+      return next;
+    });
+    if (state.status === 'running') {
+      handleRetest();
+    }
+  }, [state.status, handleRetest]);
+
   const handleSelectLanguage = useCallback((lang: TypingLanguage) => {
+    if (state.status === 'running') return;
     setSelectedLanguage(lang);
     if (testMode === 'exam') {
       setActiveDropdown(null);
@@ -759,9 +837,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, testType, target);
     setActiveDropdown(null);
     restart();
-  }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, selectedDifficulty, createPassage, setPassage, restart]);
+  }, [state.status, testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectDifficulty = useCallback((diff: TestDifficulty) => {
+    if (state.status === 'running') return;
     setSelectedDifficulty(diff);
     if (testMode === 'exam') {
       setActiveDropdown(null);
@@ -782,9 +861,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, testType, target);
     setActiveDropdown(null);
     restart();
-  }, [testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, createPassage, setPassage, restart]);
+  }, [state.status, testMode, testType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, createPassage, setPassage, restart]);
 
   const handleSelectTestType = useCallback((type: TestType) => {
+    if (state.status === 'running') return;
     if (testMode === 'exam') {
       setTestMode('standard');
     }
@@ -805,9 +885,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, type, target);
     setActiveDropdown(null);
     restart();
-  }, [testMode, setTestType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
+  }, [state.status, testMode, setTestType, selectedWordTarget, selectedCharTarget, state.duration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectStandardMode = useCallback(() => {
+    if (state.status === 'running') return;
     setTestMode('standard');
     setTestTypeState('time');
     setTestType('time');
@@ -821,9 +902,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'time', 60);
     setActiveDropdown(null);
     restart();
-  }, [setTestType, setDuration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
+  }, [state.status, setTestType, setDuration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectExamProfile = useCallback((profile: ExamProfile) => {
+    if (state.status === 'running') return;
     setTestMode('exam');
     setSelectedExamProfile(profile);
     setTestTypeState('time');
@@ -833,9 +915,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(examPassage, 'time', profile.duration);
     setActiveDropdown(null);
     restart();
-  }, [setTestType, setDuration, setPassage, restart]);
+  }, [state.status, setTestType, setDuration, setPassage, restart]);
 
   const handleSelectDuration = useCallback((dur: TestDuration) => {
+    if (state.status === 'running') return;
     setTestTypeState('time');
     setTestType('time', dur);
     setDuration(dur);
@@ -848,9 +931,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'time', dur);
     setActiveDropdown(null);
     restart();
-  }, [setTestType, setDuration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
+  }, [state.status, setTestType, setDuration, selectedLanguage, selectedDifficulty, createPassage, setPassage, restart]);
 
   const handleSelectWordTarget = useCallback((words: number) => {
+    if (state.status === 'running') return;
     setSelectedWordTarget(words);
     setTestTypeState('words');
     setTestType('words', words);
@@ -863,9 +947,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'words', words);
     setActiveDropdown(null);
     restart();
-  }, [selectedLanguage, selectedDifficulty, setTestType, createPassage, setPassage, restart]);
+  }, [state.status, selectedLanguage, selectedDifficulty, setTestType, createPassage, setPassage, restart]);
 
   const handleSelectCharTarget = useCallback((chars: number) => {
+    if (state.status === 'running') return;
     setSelectedCharTarget(chars);
     setTestTypeState('characters');
     setTestType('characters', chars);
@@ -878,7 +963,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setPassage(newPassage, 'characters', chars);
     setActiveDropdown(null);
     restart();
-  }, [selectedLanguage, selectedDifficulty, setTestType, createPassage, setPassage, restart]);
+  }, [state.status, selectedLanguage, selectedDifficulty, setTestType, createPassage, setPassage, restart]);
 
   // Focus typing area on mount if in test mode
   useEffect(() => {
@@ -1015,36 +1100,36 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       {/* Contextual Control Toolbar - Hidden when test is completed */}
       {!isCompleted && (
         <TestToolbar
-          toolbarRef={toolbarRef}
-          activeDropdown={activeDropdown}
-          setActiveDropdown={setActiveDropdown}
-          isRunning={state.status === 'running'}
-          testMode={testMode}
-          testType={effectiveTestType}
-          testTypeLabel={testTypeLabel}
-          targetLabel={targetLabel}
-          selectedLanguage={selectedLanguage}
-          difficultyLabel={difficultyLabel}
-          examProfiles={examProfiles}
-          selectedExamProfile={selectedExamProfile}
-          selectedWordTarget={selectedWordTarget}
-          selectedCharTarget={selectedCharTarget}
-          selectedDifficulty={selectedDifficulty}
-          duration={state.duration}
-          showKeyboard={showKeyboard}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onToggleKeyboard={handleToggleKeyboard}
-          onSelectTestType={handleSelectTestType}
-          onSelectExamProfile={handleSelectExamProfile}
-          onSelectDuration={handleSelectDuration}
-          onSelectWordTarget={handleSelectWordTarget}
-          onSelectCharTarget={handleSelectCharTarget}
-          onSelectLanguage={handleSelectLanguage}
-          onSelectDifficulty={handleSelectDifficulty}
-          onRetest={handleRetest}
-          onSelectStandardMode={handleSelectStandardMode}
-          onCompleteTest={completeTest}
-        />
+        toolbarRef={toolbarRef}
+        activeDropdown={activeDropdown}
+        setActiveDropdown={setActiveDropdown}
+        isRunning={state.status === 'running'}
+        testMode={testMode}
+        testType={effectiveTestType}
+        testTypeLabel={testTypeLabel}
+        targetLabel={targetLabel}
+        selectedLanguage={selectedLanguage}
+        difficultyLabel={difficultyLabel}
+        examProfiles={examProfiles}
+        selectedExamProfile={selectedExamProfile}
+        selectedWordTarget={selectedWordTarget}
+        selectedCharTarget={selectedCharTarget}
+        selectedDifficulty={selectedDifficulty}
+        duration={state.duration}
+        showKeyboard={showKeyboard}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onToggleKeyboard={handleToggleKeyboard}
+        onSelectTestType={handleSelectTestType}
+        onSelectExamProfile={handleSelectExamProfile}
+        onSelectDuration={handleSelectDuration}
+        onSelectWordTarget={handleSelectWordTarget}
+        onSelectCharTarget={handleSelectCharTarget}
+        onSelectLanguage={handleSelectLanguage}
+        onSelectDifficulty={handleSelectDifficulty}
+        onRetest={handleRetest}
+        onSelectStandardMode={handleSelectStandardMode}
+        onCompleteTest={completeTest}
+      />
       )}
 
       {/* Exam Mode Active Details (when in exam mode and test is active) */}
