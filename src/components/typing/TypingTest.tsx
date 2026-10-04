@@ -120,7 +120,7 @@ const DropdownChevron = React.memo(function DropdownChevron() {
       <path
         d="M2.5 4.5L6 8L9.5 4.5"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -423,7 +423,9 @@ const TestToolbar = React.memo(function TestToolbar({
           title="Open Settings"
           aria-haspopup="dialog"
         >
-          <span className="control-value">⚙ Settings</span>
+          <span className="control-select-pill">
+            <span className="control-value">⚙ Settings</span>
+          </span>
         </button>
       </div>
 
@@ -435,7 +437,9 @@ const TestToolbar = React.memo(function TestToolbar({
         className="toolbar-pill toolbar-pill-reset"
         title="Retest (Esc)"
       >
-        <span className="control-value">↺ Retest</span>
+        <span className="control-select-pill">
+          <span className="control-value">↺ Retest</span>
+        </span>
       </button>
 
       {/* Hidden test-mode and complete-test triggers for deterministic automated tests */}

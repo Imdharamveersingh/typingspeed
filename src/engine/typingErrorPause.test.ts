@@ -182,19 +182,25 @@ describe('Critical Typing Error Pause & Settings Behavior (Section G)', () => {
     expect(state.characters[2].state).toBe('correct');
   });
 
-  // TEST 9: Incorrect character has no red underline
-  it('TEST 9: Incorrect character has no red underline in CSS', () => {
+  // TEST 9: Incorrect character and corrected character have no underline
+  it('TEST 9: Incorrect character and corrected character have no underline in CSS', () => {
     const cssPath = path.resolve(__dirname, '../styles/globals.css');
     const cssContent = fs.readFileSync(cssPath, 'utf-8');
 
-    // .char-incorrect must exist
+    // .char-incorrect must exist with border-bottom: none and text-decoration: none
     expect(cssContent).toMatch(/\.char-incorrect\s*\{/);
-    // .char-incorrect must have border-bottom: none (no red bottom border or underline)
     expect(cssContent).toMatch(/\.char-incorrect\s*\{[^}]*border-bottom:\s*none;/s);
-    // .char-incorrect must not have red border-bottom
     expect(cssContent).not.toMatch(/\.char-incorrect\s*\{[^}]*border-bottom:\s*2px solid/s);
-    // .char-incorrect must have text-decoration: none
     expect(cssContent).toMatch(/\.char-incorrect\s*\{[^}]*text-decoration:\s*none;/s);
+
+    // .char-corrected must exist with border-bottom: none and text-decoration: none
+    expect(cssContent).toMatch(/\.char-corrected\s*\{/);
+    expect(cssContent).toMatch(/\.char-corrected\s*\{[^}]*border-bottom:\s*none;/s);
+    expect(cssContent).not.toMatch(/\.char-corrected\s*\{[^}]*border-bottom:\s*2px solid/s);
+    expect(cssContent).toMatch(/\.char-corrected\s*\{[^}]*text-decoration:\s*none;/s);
+
+    // .char-extra must also have no border-bottom
+    expect(cssContent).toMatch(/\.char-extra\s*\{[^}]*border-bottom:\s*none;/s);
   });
 
   // TEST 10: Existing Backspace behavior still works
