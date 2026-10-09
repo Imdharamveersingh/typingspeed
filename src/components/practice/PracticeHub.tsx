@@ -172,7 +172,7 @@ export const PracticeHub: React.FC = () => {
           <h1 className="practice-hub-title">Practice</h1>
           <p className="practice-hub-subtitle">Build your first typing profile.</p>
           <p className="practice-hub-desc">
-            Take a test first so TypingSpeed can identify the specific keys and patterns that need practice.
+            Take a test first so teachmetyping.com can identify the specific keys and patterns that need practice.
           </p>
           <div style={{ marginTop: 'var(--space-6)' }}>
             <Link

@@ -1,6 +1,6 @@
 # REQUIREMENTS.md — System & Functional Requirements
 
-This document outlines the phased requirements for **Typing Platform**. Requirements are organized logically and prioritized to support phase-by-phase execution without scope creep.
+This document outlines the phased requirements for **teachmetyping.com**. Requirements are organized logically and prioritized to support phase-by-phase execution without scope creep.
 
 ---
 

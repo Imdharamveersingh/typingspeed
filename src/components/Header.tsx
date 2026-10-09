@@ -2,9 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import logoImg from '@/assets/logo-tight.png';
 import ThemeToggle from '@/components/ThemeToggle';
 
 export const Header: React.FC = () => {
@@ -52,17 +50,10 @@ export const Header: React.FC = () => {
   return (
     <header className="app-header" role="banner" ref={headerRef}>
       <div className="header-inner">
-        {/* Brand Logo on the Left */}
+        {/* Brand Text on the Left */}
         <div className="header-left">
-          <Link href="/" className="brand" aria-label="TypingSpeed Home">
-            <Image
-              src={logoImg}
-              alt="TypingSpeed"
-              className="brand-logo"
-              width={165}
-              height={32}
-              priority
-            />
+          <Link href="/" className="brand" aria-label="teachmetyping.com Home">
+            <span className="brand-wordmark">teachmetyping.com</span>
           </Link>
         </div>
 

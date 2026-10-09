@@ -7,7 +7,7 @@ export const Footer: React.FC = () => {
       <div className="footer-inner">
         <div>
           <p style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: '2px' }}>
-            TypingSpeed
+            teachmetyping.com
           </p>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
             Practice typing, analyze mistakes, and systematically improve.

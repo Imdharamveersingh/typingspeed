@@ -1,6 +1,8 @@
-# TypingSpeed
+# teachmetyping.com
 
 A fast, modern, and purposeful typing improvement platform designed to help users understand their mistakes, target weak keys, and systematically increase their typing speed and accuracy.
+
+- **Production Domain:** https://teachmetyping.com
 
 > **Core Philosophy:** "Practice typing, understand your mistakes, and improve your speed."
 

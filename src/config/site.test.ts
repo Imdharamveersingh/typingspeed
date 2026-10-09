@@ -5,7 +5,7 @@ import sitemap from '@/app/sitemap';
 
 describe('Production Site Configuration & SEO', () => {
   it('defines valid site constants', () => {
-    expect(SITE_NAME).toBe('TypingSpeed');
+    expect(SITE_NAME).toBe('teachmetyping.com');
     expect(SITE_DESCRIPTION).toContain('Practice typing');
     expect(SITE_URL).toMatch(/^https?:\/\//);
   });

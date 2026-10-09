@@ -59,7 +59,7 @@ export default function ExamPage() {
             >
               <strong style={{ color: 'var(--text-primary)' }}>Important Notice: </strong>
               This is an independent practice and simulation environment designed for speed improvement and pacing preparation.
-              TypingSpeed is not affiliated with, authorized by, or endorsed by the Staff Selection Commission (SSC),
+              teachmetyping.com is not affiliated with, authorized by, or endorsed by the Staff Selection Commission (SSC),
               Railway Recruitment Boards (RRB), MP CPCT, or any government department or recruitment body. Official evaluation
               rules vary by recruitment notification and category.
             </div>

@@ -7,13 +7,13 @@ import '@/styles/globals.css';
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | TypingSpeed',
-    default: 'TypingSpeed — Modern Typing Improvement & Speed Practice',
+    template: '%s | teachmetyping.com',
+    default: 'teachmetyping.com — Modern Typing Improvement & Speed Practice',
   },
   description:
     'Practice typing, analyze mistakes, isolate weak keys, and prepare for competitive exams with high-precision metrics.',
-  applicationName: 'TypingSpeed',
-  authors: [{ name: 'TypingSpeed Team' }],
+  applicationName: 'teachmetyping.com',
+  authors: [{ name: 'teachmetyping.com Team' }],
   keywords: [
     'typing test',
     'typing practice',
@@ -30,17 +30,17 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'TypingSpeed — Modern Typing Improvement & Speed Practice',
+    title: 'teachmetyping.com — Modern Typing Improvement & Speed Practice',
     description:
       'Practice typing, understand your mistakes, and improve your speed with targeted diagnostics and exam modes.',
-    siteName: 'TypingSpeed',
+    siteName: 'teachmetyping.com',
     type: 'website',
     locale: 'en_US',
     url: '/',
   },
   twitter: {
     card: 'summary',
-    title: 'TypingSpeed — Modern Typing Improvement & Speed Practice',
+    title: 'teachmetyping.com — Modern Typing Improvement & Speed Practice',
     description:
       'Practice typing, understand your mistakes, and improve your speed with targeted diagnostics and exam modes.',
   },
